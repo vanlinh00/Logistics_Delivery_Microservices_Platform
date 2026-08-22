@@ -1,6 +1,0 @@
-{
-  "name": "Logistics & Delivery Microservices Platform",
-  "description": "Enterprise Spring Boot 3.4 & Java 21 logistics microservices backend ecosystem with Order Management, Fleet Dispatch, Fulfillment, Realtime Tracking, Notification, Kafka Outbox, and Service Mesh.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
