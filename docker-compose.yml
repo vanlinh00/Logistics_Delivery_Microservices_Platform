@@ -1,0 +1,250 @@
+version: '3.8'
+
+services:
+  # ==========================================
+  # SERVICE DISCOVERY & GATEWAY
+  # ==========================================
+  service-registry:
+    build:
+      context: ./microservices
+      dockerfile: service-registry/Dockerfile
+    container_name: logistics-service-registry
+    ports:
+      - "8761:8761"
+    networks:
+      - logistics-network
+
+  api-gateway:
+    build:
+      context: ./microservices
+      dockerfile: api-gateway/Dockerfile
+    container_name: logistics-api-gateway
+    ports:
+      - "8000:8000"
+    environment:
+      - EUREKA_HOST=service-registry
+      - REDIS_HOST=redis
+    depends_on:
+      - service-registry
+      - redis
+    networks:
+      - logistics-network
+
+  # ==========================================
+  # CORE BUSINESS MICROSERVICES
+  # ==========================================
+  order-service:
+    build:
+      context: ./microservices
+      dockerfile: order-service/Dockerfile
+    container_name: logistics-order-service
+    ports:
+      - "8081:8081"
+    environment:
+      - DB_HOST=postgres
+      - DB_NAME=orders_db
+      - REDIS_HOST=redis
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - EUREKA_HOST=service-registry
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+      - service-registry
+    networks:
+      - logistics-network
+
+  pickup-fleet-service:
+    build:
+      context: ./microservices
+      dockerfile: pickup-fleet-service/Dockerfile
+    container_name: logistics-fleet-service
+    ports:
+      - "8082:8082"
+    environment:
+      - DB_HOST=postgres
+      - DB_NAME=fleet_db
+      - REDIS_HOST=redis
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - EUREKA_HOST=service-registry
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+      - service-registry
+    networks:
+      - logistics-network
+
+  fulfillment-service:
+    build:
+      context: ./microservices
+      dockerfile: fulfillment-service/Dockerfile
+    container_name: logistics-fulfillment-service
+    ports:
+      - "8083:8083"
+    environment:
+      - DB_HOST=postgres
+      - DB_NAME=fulfillment_db
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - EUREKA_HOST=service-registry
+    depends_on:
+      - postgres
+      - kafka
+      - service-registry
+    networks:
+      - logistics-network
+
+  tracking-service:
+    build:
+      context: ./microservices
+      dockerfile: tracking-service/Dockerfile
+    container_name: logistics-tracking-service
+    ports:
+      - "8084:8084"
+    environment:
+      - DB_HOST=postgres
+      - DB_NAME=tracking_db
+      - REDIS_HOST=redis
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - EUREKA_HOST=service-registry
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+      - service-registry
+    networks:
+      - logistics-network
+
+  notification-service:
+    build:
+      context: ./microservices
+      dockerfile: notification-service/Dockerfile
+    container_name: logistics-notification-service
+    ports:
+      - "8085:8085"
+    environment:
+      - DB_HOST=postgres
+      - DB_NAME=notification_db
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - EUREKA_HOST=service-registry
+    depends_on:
+      - postgres
+      - kafka
+      - service-registry
+    networks:
+      - logistics-network
+
+  user-auth-service:
+    build:
+      context: ./microservices
+      dockerfile: user-auth-service/Dockerfile
+    container_name: logistics-user-auth-service
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_HOST=postgres
+      - DB_NAME=auth_db
+      - REDIS_HOST=redis
+      - EUREKA_HOST=service-registry
+    depends_on:
+      - postgres
+      - redis
+      - service-registry
+    networks:
+      - logistics-network
+
+  # ==========================================
+  # INFRASTRUCTURE, BROKER & PERSISTENCE
+  # ==========================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: logistics-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_MULTIPLE_DATABASES=orders_db,fleet_db,fulfillment_db,tracking_db,notification_db,auth_db
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - logistics-network
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: logistics-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis-data:/data
+    networks:
+      - logistics-network
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    container_name: logistics-zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - logistics-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: logistics-kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    depends_on:
+      - zookeeper
+    networks:
+      - logistics-network
+
+  # ==========================================
+  # OBSERVABILITY (PROMETHEUS, GRAFANA, JAEGER)
+  # ==========================================
+  prometheus:
+    image: prom/prometheus:v2.50.1
+    container_name: logistics-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - logistics-network
+
+  grafana:
+    image: grafana/grafana:10.3.3
+    container_name: logistics-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - logistics-network
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.54
+    container_name: logistics-jaeger
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+    networks:
+      - logistics-network
+
+networks:
+  logistics-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:

@@ -1,0 +1,17 @@
+package com.logistics.order.model;
+
+public enum OrderStatus {
+    DRAFT,
+    CREATED,
+    PRICED,
+    PAYMENT_CONFIRMED,
+    SCHEDULED_FOR_PICKUP,
+    PICKED_UP,
+    IN_SORTING_HUB,
+    IN_TRANSIT_BETWEEN_HUBS,
+    OUT_FOR_DELIVERY,
+    DELIVERED,
+    FAILED_ATTEMPT,
+    CANCELLED,
+    RETURNED_TO_SENDER
+}
