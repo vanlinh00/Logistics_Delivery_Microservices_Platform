@@ -19,7 +19,11 @@ import {
   Search,
   PlusCircle,
   ExternalLink,
-  ChevronRight
+  ChevronRight,
+  Download,
+  Copy,
+  Check,
+  FileCode
 } from 'lucide-react';
 
 interface MicroserviceInfo {
@@ -141,7 +145,8 @@ const SAMPLE_ORDERS = [
 ];
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'topology' | 'orders' | 'commands' | 'architecture'>('topology');
+  const [activeTab, setActiveTab] = useState<'topology' | 'orders' | 'commands' | 'architecture' | 'postman'>('topology');
+  const [copiedFile, setCopiedFile] = useState<string | null>(null);
   const [searchTrackingCode, setSearchTrackingCode] = useState('ORD-984210');
   const [orderList, setOrderList] = useState(SAMPLE_ORDERS);
   const [newOrder, setNewOrder] = useState({
@@ -238,6 +243,15 @@ export default function App() {
             >
               <Layers className="h-3.5 w-3.5" />
               Architecture Specs
+            </button>
+            <button
+              onClick={() => setActiveTab('postman')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                activeTab === 'postman' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <FileCode className="h-3.5 w-3.5" />
+              Postman Collection
             </button>
           </div>
         </div>
@@ -561,6 +575,97 @@ export default function App() {
                 <p className="text-slate-400 leading-relaxed">
                   Truyền tọa độ GPS trực tiếp tới khách hàng và quản lý vận hành với độ trễ dưới 50ms qua kênh WebSocket kết nối Redis.
                 </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 5: POSTMAN COLLECTION */}
+        {activeTab === 'postman' && (
+          <div className="space-y-6">
+            <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-9 w-9 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400">
+                    <FileCode className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-white">Postman Collection & Environment V2.1</h3>
+                    <p className="text-xs text-slate-400">Tải về hoặc copy để Import vào Postman kiểm thử toàn bộ API qua Spring Cloud Gateway</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <a
+                    href="/postman_collection.json"
+                    download="postman_collection.json"
+                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all shadow"
+                  >
+                    <Download className="h-3.5 w-3.5" /> Tải postman_collection.json
+                  </a>
+                  <a
+                    href="/postman_environment.json"
+                    download="postman_environment.json"
+                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all"
+                  >
+                    <Download className="h-3.5 w-3.5" /> Tải postman_environment.json
+                  </a>
+                </div>
+              </div>
+
+              {/* Instructions */}
+              <div className="p-4 bg-slate-950 border border-slate-800/90 rounded-lg text-xs space-y-2">
+                <p className="font-semibold text-blue-400">📖 Các bước Import vào Postman:</p>
+                <ol className="list-decimal list-inside space-y-1 text-slate-300">
+                  <li>Mở ứng dụng <strong>Postman</strong>.</li>
+                  <li>Bấm nút <strong>Import</strong> ở góc trên bên trái.</li>
+                  <li>Kéo thả hoặc chọn 2 file: <code>postman_collection.json</code> và <code>postman_environment.json</code>.</li>
+                  <li>Chọn Environment <strong>"Logistics Local Development Environment"</strong> ở góc trên bên phải của Postman.</li>
+                  <li>Chạy request <strong>1.1. Login</strong> để Postman tự động lưu JWT token vào biến <code>jwt_token</code>.</li>
+                </ol>
+              </div>
+
+              {/* Endpoint Overview Table */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-semibold text-slate-300">Danh Sách 16 Endpoints Đã Cấu Hình:</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <div className="bg-slate-950 p-3 rounded-lg border border-slate-800/80 space-y-1.5">
+                    <span className="text-[11px] font-bold text-amber-400">1. Authentication IAM (:8080)</span>
+                    <p className="text-[11px] text-slate-400 font-mono">POST /api/v1/auth/login</p>
+                    <p className="text-[11px] text-slate-400 font-mono">POST /api/v1/auth/register</p>
+                  </div>
+                  <div className="bg-slate-950 p-3 rounded-lg border border-slate-800/80 space-y-1.5">
+                    <span className="text-[11px] font-bold text-blue-400">2. Order Management (:8081)</span>
+                    <p className="text-[11px] text-slate-400 font-mono">POST /api/v1/orders (Outbox)</p>
+                    <p className="text-[11px] text-slate-400 font-mono">POST /api/v1/orders/calculate-price</p>
+                    <p className="text-[11px] text-slate-400 font-mono">GET /api/v1/orders/track/{'{code}'}</p>
+                    <p className="text-[11px] text-slate-400 font-mono">PUT /api/v1/orders/{'{id}'}/status</p>
+                  </div>
+                  <div className="bg-slate-950 p-3 rounded-lg border border-slate-800/80 space-y-1.5">
+                    <span className="text-[11px] font-bold text-emerald-400">3. Pickup & Fleet (:8082)</span>
+                    <p className="text-[11px] text-slate-400 font-mono">GET /api/v1/fleet/drivers</p>
+                    <p className="text-[11px] text-slate-400 font-mono">POST /api/v1/fleet/drivers</p>
+                    <p className="text-[11px] text-slate-400 font-mono">GET /api/v1/fleet/find-nearest-driver</p>
+                    <p className="text-[11px] text-slate-400 font-mono">POST /api/v1/fleet/pickups/assign</p>
+                  </div>
+                  <div className="bg-slate-950 p-3 rounded-lg border border-slate-800/80 space-y-1.5">
+                    <span className="text-[11px] font-bold text-purple-400">4. Fulfillment & Hub (:8083)</span>
+                    <p className="text-[11px] text-slate-400 font-mono">POST /api/v1/fulfillment/hub-transit/scan</p>
+                    <p className="text-[11px] text-slate-400 font-mono">GET /api/v1/fulfillment/hub-transit/{'{code}'}</p>
+                    <p className="text-[11px] text-slate-400 font-mono">POST /api/v1/fulfillment/pod (Signature)</p>
+                    <p className="text-[11px] text-slate-400 font-mono">GET /api/v1/fulfillment/pod/{'{code}'}</p>
+                  </div>
+                  <div className="bg-slate-950 p-3 rounded-lg border border-slate-800/80 space-y-1.5">
+                    <span className="text-[11px] font-bold text-cyan-400">5. GPS Telemetry (:8084)</span>
+                    <p className="text-[11px] text-slate-400 font-mono">POST /api/v1/tracking/events</p>
+                    <p className="text-[11px] text-slate-400 font-mono">GET /api/v1/tracking/{'{code}'}</p>
+                  </div>
+                  <div className="bg-slate-950 p-3 rounded-lg border border-slate-800/80 space-y-1.5">
+                    <span className="text-[11px] font-bold text-rose-400">6. Notifications (:8085)</span>
+                    <p className="text-[11px] text-slate-400 font-mono">POST /api/v1/notifications/send-manual</p>
+                    <p className="text-[11px] text-slate-400 font-mono">GET /api/v1/notifications/logs</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

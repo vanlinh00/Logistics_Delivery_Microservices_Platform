@@ -1,0 +1,606 @@
+{
+  "info": {
+    "_postman_id": "8903000c-e31c-4a5c-8157-logistics-microservices",
+    "name": "Logistics & Delivery Microservices Platform API",
+    "description": "Comprehensive Postman Collection covering all endpoints across Spring Cloud Gateway, Order Service, IAM Auth, Fleet Dispatch, Fulfillment, Tracking and Notification microservices.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "gateway_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "auth_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "order_url",
+      "value": "http://localhost:8081",
+      "type": "string"
+    },
+    {
+      "key": "fleet_url",
+      "value": "http://localhost:8082",
+      "type": "string"
+    },
+    {
+      "key": "fulfillment_url",
+      "value": "http://localhost:8083",
+      "type": "string"
+    },
+    {
+      "key": "tracking_url",
+      "value": "http://localhost:8084",
+      "type": "string"
+    },
+    {
+      "key": "notification_url",
+      "value": "http://localhost:8085",
+      "type": "string"
+    },
+    {
+      "key": "jwt_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sample_tracking_number",
+      "value": "ORD-984210",
+      "type": "string"
+    },
+    {
+      "key": "sample_customer_id",
+      "value": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+      "type": "string"
+    },
+    {
+      "key": "sample_driver_id",
+      "value": "b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e",
+      "type": "string"
+    },
+    {
+      "key": "sample_pickup_id",
+      "value": "c3d4e5f6-a7b8-9c0d-1e2f-3a4b5c6d7e8f",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Authentication & IAM Service (:8080 or Gateway :8000)",
+      "item": [
+        {
+          "name": "1.1. Login (Obtain JWT Token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.accessToken) {",
+                  "        pm.collectionVariables.set('jwt_token', jsonData.accessToken);",
+                  "        console.log('JWT Token saved:', jsonData.accessToken);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usernameOrEmail\": \"admin\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/auth/login",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Authenticates customer, courier, or operator and returns JWT access and refresh token."
+          }
+        },
+        {
+          "name": "1.2. Register User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"linh_customer\",\n  \"email\": \"linh.logistics@example.com\",\n  \"fullName\": \"Nguyễn Văn Linh\",\n  \"phone\": \"0988123456\",\n  \"role\": \"ROLE_CUSTOMER\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/auth/register",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "description": "Registers a new customer, courier driver or hub operator account."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Order Management Service (:8081 or Gateway :8000)",
+      "item": [
+        {
+          "name": "2.1. Calculate Shipping Price Estimate",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"weightKg\": 3.5,\n  \"distanceKm\": 45.0,\n  \"declaredValue\": 2500000,\n  \"codAmount\": 500000,\n  \"expressDelivery\": true\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/orders/calculate-price",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "orders", "calculate-price"]
+            },
+            "description": "Calculates shipping fee breakdown based on distance, weight, insurance fee, and COD."
+          }
+        },
+        {
+          "name": "2.2. Create Shipment Order (Outbox & Kafka)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201 || pm.response.code === 200) {",
+                  "    var data = pm.response.json();",
+                  "    if (data.trackingNumber) {",
+                  "        pm.collectionVariables.set('sample_tracking_number', data.trackingNumber);",
+                  "        console.log('Saved tracking number:', data.trackingNumber);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"{{sample_customer_id}}\",\n  \"senderName\": \"Tổng Kho Cầu Giấy\",\n  \"senderPhone\": \"0988776655\",\n  \"senderAddress\": \"120 Xuân Thủy, Cầu Giấy, Hà Nội\",\n  \"senderLatitude\": 21.0366,\n  \"senderLongitude\": 105.7828,\n  \"recipientName\": \"Nguyễn Thị Mai\",\n  \"recipientPhone\": \"0912345678\",\n  \"recipientAddress\": \"45 Nguyễn Văn Linh, Hải Châu, Đà Nẵng\",\n  \"recipientLatitude\": 16.0611,\n  \"recipientLongitude\": 108.2198,\n  \"totalWeightKg\": 2.8,\n  \"totalVolumeM3\": 0.015,\n  \"declaredValue\": 1500000,\n  \"codAmount\": 350000,\n  \"specialInstructions\": \"Hàng điện tử dễ vỡ, giao giờ hành chính\",\n  \"items\": [\n    {\n      \"itemName\": \"Bàn phím cơ không dây\",\n      \"quantity\": 1,\n      \"weightKg\": 1.2,\n      \"declaredValue\": 1000000,\n      \"category\": \"ELECTRONICS\"\n    },\n    {\n      \"itemName\": \"Chuột Gaming Ergonomic\",\n      \"quantity\": 1,\n      \"weightKg\": 0.4,\n      \"declaredValue\": 500000,\n      \"category\": \"ELECTRONICS\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/orders",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "orders"]
+            },
+            "description": "Creates shipment order with Transactional Outbox pattern and dispatches order-created Kafka event."
+          }
+        },
+        {
+          "name": "2.3. Track Order By Tracking Number",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/orders/track/{{sample_tracking_number}}",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "orders", "track", "{{sample_tracking_number}}"]
+            },
+            "description": "Retrieves comprehensive shipment details by tracking number."
+          }
+        },
+        {
+          "name": "2.4. List Orders by Customer ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/orders/customer/{{sample_customer_id}}?page=0&size=10",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "orders", "customer", "{{sample_customer_id}}"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Returns paginated list of shipment orders created by a specific customer."
+          }
+        },
+        {
+          "name": "2.5. Update Order Status (Distributed Lock Safe)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"IN_TRANSIT\",\n  \"reason\": \"Package departed origin hub for linehaul delivery\",\n  \"assignedDriverId\": \"{{sample_driver_id}}\",\n  \"currentHubId\": \"HUB-HANOI-01\",\n  \"note\": \"Dispatched on Truck Linehaul-NorthSouth-02\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/orders/{{sample_customer_id}}/status",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "orders", "{{sample_customer_id}}", "status"]
+            },
+            "description": "Updates order state atomically using Redisson distributed lock."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Pickup & Fleet Dispatch Service (:8082 or Gateway :8000)",
+      "item": [
+        {
+          "name": "3.1. List All Active Drivers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/fleet/drivers?status=AVAILABLE",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "fleet", "drivers"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "AVAILABLE"
+                }
+              ]
+            },
+            "description": "Lists fleet drivers filtered by status (AVAILABLE, BUSY, OFFLINE)."
+          }
+        },
+        {
+          "name": "3.2. Register Courier Driver",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Trần Đình Trọng\",\n  \"phone\": \"0977665544\",\n  \"vehicleNumber\": \"29C-987.65\",\n  \"vehicleType\": \"VAN_500KG\",\n  \"currentLatitude\": 21.0333,\n  \"currentLongitude\": 105.7890,\n  \"maxPayloadKg\": 500.0\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/fleet/drivers",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "fleet", "drivers"]
+            },
+            "description": "Adds a new courier driver or logistics van to the fleet system."
+          }
+        },
+        {
+          "name": "3.3. Auto-Find Nearest Driver by Coordinates",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/fleet/find-nearest-driver?lat=21.0366&lon=105.7828&vehicleType=MOTORBIKE",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "fleet", "find-nearest-driver"],
+              "query": [
+                {
+                  "key": "lat",
+                  "value": "21.0366"
+                },
+                {
+                  "key": "lon",
+                  "value": "105.7828"
+                },
+                {
+                  "key": "vehicleType",
+                  "value": "MOTORBIKE"
+                }
+              ]
+            },
+            "description": "Geospatial proximity search to match optimal available courier for parcel pickup."
+          }
+        },
+        {
+          "name": "3.4. List Pickup Tasks",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/fleet/pickups?status=PENDING",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "fleet", "pickups"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "PENDING"
+                }
+              ]
+            },
+            "description": "Queries pending or in-progress pickup dispatch missions."
+          }
+        },
+        {
+          "name": "3.5. Dispatch Pickup Task to Driver",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/fleet/pickups/{{sample_pickup_id}}/assign/{{sample_driver_id}}",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "fleet", "pickups", "{{sample_pickup_id}}", "assign", "{{sample_driver_id}}"]
+            },
+            "description": "Assigns a specific pickup mission to a courier driver."
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Fulfillment & Hub Transit Service (:8083 or Gateway :8000)",
+      "item": [
+        {
+          "name": "4.1. Scan Barcode at Logistics Hub",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"trackingNumber\": \"{{sample_tracking_number}}\",\n  \"sourceHubId\": \"HUB-HN-CAUGIAY\",\n  \"targetHubId\": \"HUB-DN-LIENCHIEU\",\n  \"scanAction\": \"INBOUND_SORTED\",\n  \"sealNumber\": \"SEAL-889922\",\n  \"operatorId\": \"OP-994\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/fulfillment/hub-transit/scan",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "fulfillment", "hub-transit", "scan"]
+            },
+            "description": "Records barcode scans at sorting cross-docks and fires hub transit Kafka events."
+          }
+        },
+        {
+          "name": "4.2. Get Hub Transit History Scans",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/fulfillment/hub-transit/{{sample_tracking_number}}",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "fulfillment", "hub-transit", "{{sample_tracking_number}}"]
+            },
+            "description": "Returns complete chronological list of warehouse sorting and hub scans."
+          }
+        },
+        {
+          "name": "4.3. Submit Proof of Delivery (POD)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"trackingNumber\": \"{{sample_tracking_number}}\",\n  \"recipientSignedName\": \"Nguyễn Thị Mai\",\n  \"signatureImageUrl\": \"https://storage.example.com/signatures/pod_984210.png\",\n  \"photoDeliveryUrl\": \"https://storage.example.com/photos/parcel_delivered_984210.jpg\",\n  \"codCollectedAmount\": 350000,\n  \"driverId\": \"{{sample_driver_id}}\",\n  \"notes\": \"Khách hàng đã nhận đủ và ký nhận\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/fulfillment/pod",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "fulfillment", "pod"]
+            },
+            "description": "Submits POD signature, delivery photo, and marks parcel as successfully delivered."
+          }
+        },
+        {
+          "name": "4.4. Get POD Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/fulfillment/pod/{{sample_tracking_number}}",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "fulfillment", "pod", "{{sample_tracking_number}}"]
+            },
+            "description": "Retrieves POD certificate, signature, and timestamp."
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Real-Time Tracking & Telemetry (:8084 or Gateway :8000)",
+      "item": [
+        {
+          "name": "5.1. Record Courier GPS Telemetry / Waypoint Ping",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"trackingNumber\": \"{{sample_tracking_number}}\",\n  \"latitude\": 16.0611,\n  \"longitude\": 108.2198,\n  \"speedKmh\": 38.5,\n  \"locationName\": \"Đèo Hải Vân, Đà Nẵng\",\n  \"status\": \"IN_TRANSIT\",\n  \"driverId\": \"{{sample_driver_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/tracking/events",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "tracking", "events"]
+            },
+            "description": "Ingests GPS telemetry coordinate ping and broadcasts via STOMP WebSocket."
+          }
+        },
+        {
+          "name": "5.2. Get Real-Time Tracking Timeline",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/tracking/{{sample_tracking_number}}",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "tracking", "{{sample_tracking_number}}"]
+            },
+            "description": "Returns full chronological GPS trajectory and waypoint history."
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Notification & Alert Service (:8085 or Gateway :8000)",
+      "item": [
+        {
+          "name": "6.1. Send Manual SMS / Email Alert",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"recipient\": \"0988123456\",\n  \"channel\": \"SMS\",\n  \"title\": \"Đơn hàng đang được giao\",\n  \"content\": \"Đơn hàng ORD-984210 đang được tài xế giao tới bạn trong 30 phút nữa. Vui lòng chuẩn bị 350.000đ tiền mặt.\",\n  \"trackingNumber\": \"{{sample_tracking_number}}\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/notifications/send-manual",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "notifications", "send-manual"]
+            },
+            "description": "Dispatches urgent notification directly to SMS / Email provider."
+          }
+        },
+        {
+          "name": "6.2. Query Notification Delivery Logs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/notifications/logs?recipient=0988123456",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "notifications", "logs"],
+              "query": [
+                {
+                  "key": "recipient",
+                  "value": "0988123456"
+                }
+              ]
+            },
+            "description": "Queries delivery status of dispatched SMS, Email, and Push alerts."
+          }
+        }
+      ]
+    }
+  ]
+}

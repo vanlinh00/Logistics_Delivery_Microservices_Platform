@@ -1,0 +1,238 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-create-orders-table
+      author: logistics-team
+      changes:
+        - createTable:
+            tableName: orders
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tracking_number
+                  type: VARCHAR(32)
+                  constraints:
+                    unique: true
+                    nullable: false
+              - column:
+                  name: customer_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: VARCHAR(32)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: sender_name
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: sender_phone
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: sender_address
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: sender_latitude
+                  type: FLOAT8
+              - column:
+                  name: sender_longitude
+                  type: FLOAT8
+              - column:
+                  name: recipient_name
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: recipient_phone
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: recipient_address
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: recipient_latitude
+                  type: FLOAT8
+              - column:
+                  name: recipient_longitude
+                  type: FLOAT8
+              - column:
+                  name: total_weight_kg
+                  type: FLOAT8
+                  constraints:
+                    nullable: false
+              - column:
+                  name: total_volume_m3
+                  type: FLOAT8
+              - column:
+                  name: base_shipping_fee
+                  type: NUMERIC(12, 2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: weight_surcharge
+                  type: NUMERIC(12, 2)
+              - column:
+                  name: insurance_fee
+                  type: NUMERIC(12, 2)
+              - column:
+                  name: cod_amount
+                  type: NUMERIC(12, 2)
+              - column:
+                  name: total_amount
+                  type: NUMERIC(12, 2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: special_instructions
+                  type: VARCHAR(500)
+              - column:
+                  name: assigned_driver_id
+                  type: VARCHAR(255)
+              - column:
+                  name: current_hub_id
+                  type: VARCHAR(255)
+              - column:
+                  name: version
+                  type: BIGINT
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+        - createIndex:
+            indexName: idx_order_tracking_number
+            tableName: orders
+            columns:
+              - column:
+                  name: tracking_number
+            unique: true
+        - createIndex:
+            indexName: idx_order_customer_id
+            tableName: orders
+            columns:
+              - column:
+                  name: customer_id
+        - createIndex:
+            indexName: idx_order_status
+            tableName: orders
+            columns:
+              - column:
+                  name: status
+
+  - changeSet:
+      id: 002-create-order-items-table
+      author: logistics-team
+      changes:
+        - createTable:
+            tableName: order_items
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: order_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_order_items_order
+                    references: orders(id)
+              - column:
+                  name: item_name
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: quantity
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: weight_kg
+                  type: FLOAT8
+                  constraints:
+                    nullable: false
+              - column:
+                  name: declared_value
+                  type: NUMERIC(12, 2)
+              - column:
+                  name: category
+                  type: VARCHAR(255)
+
+  - changeSet:
+      id: 003-create-order-outbox-table
+      author: logistics-team
+      changes:
+        - createTable:
+            tableName: order_outbox
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: aggregate_type
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: aggregate_id
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: event_type
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: payload
+                  type: TEXT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: processed
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: retry_count
+                  type: INT
+              - column:
+                  name: error_message
+                  type: VARCHAR(255)
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+              - column:
+                  name: processed_at
+                  type: TIMESTAMP
+        - createIndex:
+            indexName: idx_outbox_status_created
+            tableName: order_outbox
+            columns:
+              - column:
+                  name: processed
+              - column:
+                  name: created_at
