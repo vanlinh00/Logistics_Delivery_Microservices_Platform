@@ -1,0 +1,21 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'spring-actuator'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 5s
+    static_configs:
+      - targets:
+          - 'order-service:8081'
+          - 'pickup-fleet-service:8082'
+          - 'fulfillment-service:8083'
+          - 'tracking-service:8084'
+          - 'notification-service:8085'
+          - 'user-auth-service:8080'
+          - 'api-gateway:8000'
