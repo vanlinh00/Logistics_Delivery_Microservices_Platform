@@ -1,8 +1,93 @@
+# ==========================================
+# Java & Maven Build Artifacts
+# ==========================================
+target/
+*.jar
+*.war
+*.ear
+*.class
+*.nar
+*.zip
+*.tar.gz
+*.rar
+hs_err_pid*
+replay_pid*
+
+# ==========================================
+# Node / Frontend / Package Managers (if any)
+# ==========================================
 node_modules/
-build/
 dist/
+build/
 coverage/
-.DS_Store
-*.log
-.env*
+.npm/
+.yarn/
+
+# ==========================================
+# Environment & Secrets
+# ==========================================
+.env
+.env.local
+.env.*.local
 !.env.example
+
+# ==========================================
+# Logs & Runtime
+# ==========================================
+*.log
+logs/
+*.pid
+*.seed
+*.pid.lock
+
+# ==========================================
+# IDE & Editor Configurations
+# ==========================================
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+.idea_modules/
+
+# Eclipse
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+# VS Code
+.vscode/
+*.code-workspace
+.history/
+
+# NetBeans
+nbproject/private/
+build/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+
+# ==========================================
+# OS & System Files
+# ==========================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+[Dd]esktop.ini
+
+# ==========================================
+# Docker & Containers
+# ==========================================
+.docker/
+docker-compose.override.yml
+
