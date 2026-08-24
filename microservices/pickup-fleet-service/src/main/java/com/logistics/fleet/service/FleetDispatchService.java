@@ -11,6 +11,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -26,6 +27,8 @@ public class FleetDispatchService {
     private final StringRedisTemplate redisTemplate;
     private final KafkaTemplate<String, String> kafkaTemplate;
 
+    private static final Duration DRIVER_STATE_TTL = Duration.ofHours(24);
+
     @Transactional
     public PickupTask assignDriverToPickup(UUID taskId, UUID driverId) {
         PickupTask task = pickupTaskRepository.findById(taskId)
@@ -38,8 +41,12 @@ public class FleetDispatchService {
         task.setStatus(PickupTask.PickupStatus.ASSIGNED);
         task.setUpdatedAt(LocalDateTime.now());
 
-        // Update driver state in Redis
-        redisTemplate.opsForValue().set("driver:state:" + driver.getId(), "ASSIGNED_PICKUP_" + task.getId());
+        // Update driver state in Redis with 24-hour TTL
+        try {
+            redisTemplate.opsForValue().set("driver:state:" + driver.getId(), "ASSIGNED_PICKUP_" + task.getId(), DRIVER_STATE_TTL);
+        } catch (Exception e) {
+            log.warn("Failed to update driver state in Redis: {}", e.getMessage());
+        }
 
         // Publish to Kafka topic
         kafkaTemplate.send("logistics.fleet.pickup-assigned", task.getTrackingNumber(), "Driver " + driver.getFullName() + " assigned");
