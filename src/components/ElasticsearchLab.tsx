@@ -226,7 +226,7 @@ export const ElasticsearchLab: React.FC = () => {
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [selectedCity, setSelectedCity] = useState<string>('ALL');
   const [selectedServiceType, setSelectedServiceType] = useState<string>('ALL');
-  const [activeDslTab, setActiveDslTab] = useState<'search' | 'autocomplete' | 'geo' | 'aggs' | 'mapping' | 'java'>('search');
+  const [activeDslTab, setActiveDslTab] = useState<'search' | 'autocomplete' | 'geo' | 'aggs' | 'when_to_use' | 'order_service_example' | 'java'>('when_to_use');
   const [copiedCode, setCopiedCode] = useState(false);
 
   // Geo Spatial Radar State
@@ -851,8 +851,10 @@ export const ElasticsearchLab: React.FC = () => {
           <div className="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden flex flex-col h-[680px]">
             {/* DSL Header Tabs */}
             <div className="bg-slate-950 border-b border-slate-800 p-2 flex items-center justify-between flex-wrap gap-1">
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 overflow-x-auto">
                 {[
+                  { id: 'when_to_use', label: '📌 Khi nào Lưu / Đọc ES?' },
+                  { id: 'order_service_example', label: '📦 Order Service Flow' },
                   { id: 'search', label: 'Bool Query DSL' },
                   { id: 'autocomplete', label: 'Edge N-Gram' },
                   { id: 'geo', label: 'Geo Distance' },
@@ -862,7 +864,7 @@ export const ElasticsearchLab: React.FC = () => {
                   <button
                     key={t.id}
                     onClick={() => setActiveDslTab(t.id as any)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-mono transition-all ${
+                    className={`px-2.5 py-1 rounded-lg text-xs font-mono whitespace-nowrap transition-all ${
                       activeDslTab === t.id
                         ? 'bg-amber-500 text-slate-950 font-bold shadow'
                         : 'text-slate-400 hover:text-white hover:bg-slate-800'
@@ -880,9 +882,11 @@ export const ElasticsearchLab: React.FC = () => {
                   if (activeDslTab === 'geo') textToCopy = geoDslExample;
                   if (activeDslTab === 'aggs') textToCopy = aggsDslExample;
                   if (activeDslTab === 'java') textToCopy = springDataJavaCode;
+                  if (activeDslTab === 'when_to_use') textToCopy = whenToUseMarkdown;
+                  if (activeDslTab === 'order_service_example') textToCopy = orderServiceExampleCode;
                   handleCopyCode(textToCopy);
                 }}
-                className="flex items-center gap-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-mono"
+                className="flex items-center gap-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-mono shrink-0"
               >
                 {copiedCode ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
                 {copiedCode ? 'Copied' : 'Copy'}
@@ -891,6 +895,58 @@ export const ElasticsearchLab: React.FC = () => {
 
             {/* Code Body */}
             <div className="flex-1 p-4 bg-slate-950 overflow-y-auto font-mono text-[11px] leading-relaxed text-slate-300">
+              {activeDslTab === 'when_to_use' && (
+                <div className="space-y-4 font-sans text-xs">
+                  <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3.5 space-y-2 text-amber-200">
+                    <h3 className="text-sm font-bold text-amber-300 flex items-center gap-2">
+                      <Zap className="h-4 w-4" /> Nguyên tắc cốt lõi: CQRS (Command Query Responsibility Segregation)
+                    </h3>
+                    <p className="text-slate-300 leading-relaxed">
+                      Trong microservice <strong>order-service</strong>, <strong>PostgreSQL</strong> là <span className="text-emerald-300 font-bold">Write DB (Single Source of Truth)</span> để ghi đơn hàng, đảm bảo tính toàn vẹn ACID. <strong>Elasticsearch</strong> là <span className="text-amber-300 font-bold">Read DB (Search Engine)</span> để người dùng và CSKH tra cứu siêu tốc.
+                    </p>
+                  </div>
+
+                  {/* Comparison Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 font-sans">
+                    <div className="bg-emerald-950/20 border border-emerald-500/30 rounded-xl p-3.5 space-y-2">
+                      <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs">
+                        <CheckCircle2 className="h-4 w-4" /> 1. KHI NÀO LƯU (SAVE) VÀO ELASTICSEARCH?
+                      </div>
+                      <ul className="text-slate-300 space-y-1.5 list-disc pl-4 text-[11px]">
+                        <li><strong>Khi tạo đơn hàng mới:</strong> Sau khi `orders` table trong PostgreSQL commit xong, bắn event Kafka <code className="text-emerald-300 bg-slate-900 px-1 py-0.5 rounded">order.created</code> để sync sang ES.</li>
+                        <li><strong>Khi cập nhật trạng thái đơn:</strong> Shipper giao hàng (`SHIPPED`, `DELIVERED`, `CANCELLED`), cập nhật status vào ES.</li>
+                        <li><strong>Khi thay đổi địa chỉ / người nhận:</strong> Khách sửa địa chỉ hoặc số điện thoại, đẩy CDC event update ES doc.</li>
+                        <li><strong>Khi gắn tag / phân loại đơn:</strong> Phân loại <code className="text-emerald-300 bg-slate-900 px-1 rounded">#HIGH_VALUE</code>, <code className="text-emerald-300 bg-slate-900 px-1 rounded">#FRAGILE</code> để bộ phận điều phối lọc nhanh.</li>
+                      </ul>
+                    </div>
+
+                    <div className="bg-blue-950/20 border border-blue-500/30 rounded-xl p-3.5 space-y-2">
+                      <div className="flex items-center gap-2 text-blue-400 font-bold text-xs">
+                        <Eye className="h-4 w-4" /> 2. KHI NÀO ĐỌC (GET) TỪ ELASTICSEARCH?
+                      </div>
+                      <ul className="text-slate-300 space-y-1.5 list-disc pl-4 text-[11px]">
+                        <li><strong>Tìm kiếm Full-text & Gõ sai (Fuzzy):</strong> Khách hoặc CSKH gõ "098421", "laptap dell", "Hải Triều Q1" &rarr; ES tìm ra trong <strong>&lt; 3ms</strong>.</li>
+                        <li><strong>Gợi ý gõ phím (Autocomplete):</strong> Gõ "ORD-98" hiện dropdown ngay lập tức bằng Edge N-gram.</li>
+                        <li><strong>Lọc đa tiêu chí (Multi-facet filter):</strong> Lọc cùng lúc theo [Status + Tỉnh/Thành + Cước phí + Ngày tạo] trên 10 triệu đơn.</li>
+                        <li><strong>Tìm đơn hàng gần vị trí GPS:</strong> Tìm các đơn giao trong bán kính 10km quanh kho Tân Bình.</li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 text-[11px] text-slate-400">
+                    <span className="text-red-400 font-bold">⚠️ Khi nào KHÔNG DÙNG Elasticsearch:</span> Không dùng ES để tính toán số dư ví tiền, trừ tồn kho, hoặc xử lý thanh toán tài chính (hãy dùng PostgreSQL ACID).
+                  </div>
+                </div>
+              )}
+
+              {activeDslTab === 'order_service_example' && (
+                <div className="space-y-3">
+                  <p className="text-slate-400 text-xs font-sans">
+                    Quy trình Spring Boot 3.4 chuẩn cho <code>order-service</code>: PostgreSQL Transactional Outbox ➔ Kafka ➔ Elasticsearch Indexing ➔ Fast Query API.
+                  </p>
+                  <pre className="text-amber-300 whitespace-pre-wrap">{orderServiceExampleCode}</pre>
+                </div>
+              )}
               {activeDslTab === 'search' && (
                 <pre className="text-amber-300/90 whitespace-pre-wrap">{currentGeneratedDsl}</pre>
               )}
@@ -1062,3 +1118,54 @@ public void onTrackingEvent(String trackingNumber, String statusDesc) {
     doc.setLastUpdatedAt(Instant.now());
     repository.save(doc); // Ingests into Elasticsearch in < 5ms
 }`;
+
+const whenToUseMarkdown = `CQRS ARCHITECTURE: POSTGRESQL (Write) vs ELASTICSEARCH (Read)
+
+1. KHI NÀO LƯU (SAVE) VÀO ELASTICSEARCH:
+- Khi tạo mới đơn hàng trong PostgreSQL (order.created).
+- Khi thay đổi trạng thái đơn (PENDING -> CONFIRMED -> SHIPPED -> DELIVERED).
+- Khi khách hàng cập nhật thông tin người nhận / địa chỉ giao hàng.
+- Khi phân loại đơn (gắn tags: #FRAGILE, #HIGH_VALUE).
+
+2. KHI NÀO ĐỌC (GET) TỪ ELASTICSEARCH:
+- Tìm kiếm full-text đa trường (Mã đơn, SĐT, Tên khách, Tên sản phẩm).
+- Tìm kiếm chịu lỗi chính tả (Fuzzy search: gõ "laptap" vẫn ra "laptop").
+- Autocomplete / Gợi ý khi gõ phím (Edge N-gram).
+- Lọc đa chiều (Facet filtering) trên hàng triệu đơn với độ trễ < 5ms.
+- Tìm kiếm theo bán kính GPS (Geo-Distance proximity search).
+
+3. KHI NÀO KHÔNG DÙNG ELASTICSEARCH:
+- Giao dịch thanh toán tiền, trừ ví, cập nhật số dư (Cần PostgreSQL ACID).
+- Khóa bản ghi chính xác (Row Locking SELECT ... FOR UPDATE).`;
+
+const orderServiceExampleCode = `// 1. ORDER CREATION (PostgreSQL Transaction + Outbox Event)
+@Transactional
+public OrderResponse createOrder(CreateOrderRequest req) {
+    // Write to Primary DB (PostgreSQL - ACID guarantee)
+    OrderEntity order = orderJpaRepository.save(req.toEntity());
+    
+    // Save to Outbox Table for guaranteed Kafka publishing
+    outboxEventRepository.save(new OutboxEvent("order.created", order.getId(), order.toJson()));
+    return OrderResponse.from(order);
+}
+
+// 2. REAL-TIME SYNC (Kafka Consumer -> Elasticsearch Indexer)
+@KafkaListener(topics = "order.events", groupId = "order-es-sync")
+public void syncOrderToElasticsearch(String orderJson) {
+    OrderDocument doc = objectMapper.readValue(orderJson, OrderDocument.class);
+    // Ingest into Elasticsearch in < 5ms
+    orderElasticsearchRepository.save(doc);
+}
+
+// 3. FAST SEARCH API (Querying Elasticsearch)
+@GetMapping("/api/v1/orders/search")
+public Page<OrderDocument> searchOrders(
+    @RequestParam(required = false) String q,
+    @RequestParam(required = false) String status,
+    @RequestParam(required = false) String city,
+    Pageable pageable
+) {
+    // Executes Bool Query with Fuzzy Matching across millions of orders in < 3ms!
+    return orderElasticsearchService.searchOrders(q, status, city, pageable);
+}`;
+
