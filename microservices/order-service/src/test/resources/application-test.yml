@@ -1,0 +1,30 @@
+# application-test.yml - Spring Boot Test Configuration Profile
+spring:
+  application:
+    name: order-service-test
+  datasource:
+    url: jdbc:h2:mem:orderdb_test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+  liquibase:
+    enabled: false
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      auto-offset-reset: earliest
+      group-id: order-service-test-group
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+logging:
+  level:
+    com.logistics.order: DEBUG
+    org.springframework.web: INFO
