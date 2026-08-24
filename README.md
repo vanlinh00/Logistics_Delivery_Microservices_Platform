@@ -118,6 +118,32 @@ graph TD
 - **Multi-Channel Notification Dispatcher**:
   - `SmsNotificationStrategy`, `EmailNotificationStrategy`, `ZaloZnsNotificationStrategy`, `PushNotificationStrategy`.
 
+### 6. 🛡️ Global Exception Handling & Enterprise Error Contract
+
+All microservices implement centralized exception handling via `@RestControllerAdvice` and standard `ApiResponse<T>` / `GenericResponse<T>` JSON wrappers:
+
+```json
+{
+  "success": false,
+  "code": "VALIDATION_FAILED",
+  "message": "Request payload validation failed",
+  "data": null,
+  "details": [
+    "Field 'recipientAddress': must not be blank",
+    "Field 'totalWeightKg': must be greater than 0"
+  ],
+  "timestamp": "2026-08-23T21:30:00"
+}
+```
+
+#### Exception Hierarchy & Mapping:
+- **`ResourceNotFoundException` (404 NOT FOUND)**: Thrown when an order, user profile, tracking parcel, or driver cannot be located.
+- **`MethodArgumentNotValidException` (400 BAD REQUEST)**: Catches DTO `@Valid` constraints (`@NotNull`, `@NotBlank`, `@Min`) and extracts field-level details.
+- **`InvalidCredentialsException` / `AccountInactiveException` (401 / 403)**: Thrown on authentication failures or suspended accounts.
+- **`DuplicateUserException` / `DuplicateResourceException` (409 CONFLICT)**: Handles duplicate usernames, emails, or unique constraint violations.
+- **`InvalidStatusTransitionException` (400 BAD REQUEST)**: Guards against illegal state machine transitions on shipments.
+- **`DriverUnavailableException` (409 CONFLICT)**: Thrown during fleet assignment when no drivers meet geographic/capacity criteria.
+- **`Exception` (500 INTERNAL SERVER ERROR)**: Catch-all fallback preventing stack trace leaks to external clients.
 
 ---
 

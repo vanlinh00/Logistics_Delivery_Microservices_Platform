@@ -8,6 +8,9 @@ import com.logistics.order.model.OrderOutbox;
 import com.logistics.order.model.OrderStatus;
 import com.logistics.order.repository.OrderOutboxRepository;
 import com.logistics.order.repository.OrderRepository;
+import com.logistics.order.exception.ResourceNotFoundException;
+import com.logistics.order.exception.InvalidStatusTransitionException;
+import com.logistics.order.exception.BusinessRuleViolationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
@@ -135,9 +138,14 @@ public class OrderService {
             }
 
             Order order = orderRepository.findById(orderId)
-                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đơn hàng: " + orderId));
+                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng với ID: " + orderId));
 
-            OrderStatus nextStatus = OrderStatus.valueOf(request.getStatus().toUpperCase());
+            OrderStatus nextStatus;
+            try {
+                nextStatus = OrderStatus.valueOf(request.getStatus().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new InvalidStatusTransitionException("Trạng thái đơn hàng không hợp lệ: " + request.getStatus());
+            }
             order.setStatus(nextStatus);
 
             if (request.getAssignedDriverId() != null) {
@@ -174,7 +182,7 @@ public class OrderService {
 
     public Order getOrderByTrackingNumber(String trackingNumber) {
         return orderRepository.findByTrackingNumber(trackingNumber)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy mã vận đơn: " + trackingNumber));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng với mã vận đơn: " + trackingNumber));
     }
 
     public Page<Order> getOrdersByCustomer(UUID customerId, Pageable pageable) {

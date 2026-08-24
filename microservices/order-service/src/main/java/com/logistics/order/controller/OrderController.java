@@ -1,5 +1,6 @@
 package com.logistics.order.controller;
 
+import com.logistics.order.dto.ApiResponse;
 import com.logistics.order.dto.OrderDTOs;
 import com.logistics.order.model.Order;
 import com.logistics.order.service.OrderService;
@@ -27,35 +28,36 @@ public class OrderController {
 
     @PostMapping
     @Operation(summary = "Create a new shipment order", description = "Validates address, calculates shipping fees, persists order and writes to Transactional Outbox")
-    public ResponseEntity<Order> createOrder(@Valid @RequestBody OrderDTOs.CreateOrderRequest request) {
+    public ResponseEntity<ApiResponse<Order>> createOrder(@Valid @RequestBody OrderDTOs.CreateOrderRequest request) {
         Order created = orderService.createOrder(request);
-        return new ResponseEntity<>(created, HttpStatus.CREATED);
+        return new ResponseEntity<>(ApiResponse.created(created, "Order created successfully"), HttpStatus.CREATED);
     }
 
     @GetMapping("/track/{trackingNumber}")
     @Operation(summary = "Get order details by tracking number")
-    public ResponseEntity<Order> getOrderByTracking(@PathVariable String trackingNumber) {
-        return ResponseEntity.ok(orderService.getOrderByTrackingNumber(trackingNumber));
+    public ResponseEntity<ApiResponse<Order>> getOrderByTracking(@PathVariable String trackingNumber) {
+        return ResponseEntity.ok(ApiResponse.ok(orderService.getOrderByTrackingNumber(trackingNumber), "Order found"));
     }
 
     @GetMapping("/customer/{customerId}")
     @Operation(summary = "List customer shipment orders with pagination")
-    public ResponseEntity<Page<Order>> getCustomerOrders(@PathVariable UUID customerId, Pageable pageable) {
-        return ResponseEntity.ok(orderService.getOrdersByCustomer(customerId, pageable));
+    public ResponseEntity<ApiResponse<Page<Order>>> getCustomerOrders(@PathVariable UUID customerId, Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.ok(orderService.getOrdersByCustomer(customerId, pageable), "Orders retrieved successfully"));
     }
 
     @PutMapping("/{orderId}/status")
     @Operation(summary = "Update order status with distributed lock safety")
-    public ResponseEntity<Order> updateStatus(
+    public ResponseEntity<ApiResponse<Order>> updateStatus(
             @PathVariable UUID orderId,
             @Valid @RequestBody OrderDTOs.UpdateOrderStatusRequest request) {
-        return ResponseEntity.ok(orderService.updateOrderStatus(orderId, request));
+        return ResponseEntity.ok(ApiResponse.ok(orderService.updateOrderStatus(orderId, request), "Order status updated successfully"));
     }
 
     @PostMapping("/calculate-price")
     @Operation(summary = "Estimate shipping cost dynamically based on weight, distance, COD and value")
-    public ResponseEntity<OrderDTOs.PriceCalculationResponse> calculatePrice(
+    public ResponseEntity<ApiResponse<OrderDTOs.PriceCalculationResponse>> calculatePrice(
             @Valid @RequestBody OrderDTOs.PriceCalculationRequest request) {
-        return ResponseEntity.ok(pricingService.calculatePrice(request));
+        return ResponseEntity.ok(ApiResponse.ok(pricingService.calculatePrice(request), "Price calculated successfully"));
     }
 }
+

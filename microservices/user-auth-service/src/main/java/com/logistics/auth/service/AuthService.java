@@ -1,6 +1,10 @@
 package com.logistics.auth.service;
 
 import com.logistics.auth.dto.AuthDTOs.*;
+import com.logistics.auth.exception.AccountInactiveException;
+import com.logistics.auth.exception.DuplicateUserException;
+import com.logistics.auth.exception.InvalidCredentialsException;
+import com.logistics.auth.exception.ResourceNotFoundException;
 import com.logistics.auth.model.User;
 import com.logistics.auth.repository.UserRepository;
 import com.logistics.auth.security.JwtProvider;
@@ -28,17 +32,17 @@ public class AuthService {
 
         User user = userRepository.findByUsername(request.getUsernameOrEmail())
                 .or(() -> userRepository.findByEmail(request.getUsernameOrEmail()))
-                .orElseThrow(() -> new IllegalArgumentException("Invalid username or password"));
+                .orElseThrow(() -> new InvalidCredentialsException("Tên đăng nhập hoặc mật khẩu không chính xác"));
 
         if (!user.getActive()) {
-            throw new IllegalStateException("User account is inactive or suspended");
+            throw new AccountInactiveException("Tài khoản người dùng đã bị khóa hoặc chưa được kích hoạt");
         }
 
         // Validate password against hashed credentials
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             // Also allow initial plain text fallback for backward compatible seed data
             if (!request.getPassword().equals(user.getPasswordHash())) {
-                throw new IllegalArgumentException("Invalid username or password");
+                throw new InvalidCredentialsException("Tên đăng nhập hoặc mật khẩu không chính xác");
             }
         }
 
@@ -70,11 +74,11 @@ public class AuthService {
         log.info("Registering new user: {}", request.getUsername());
 
         if (userRepository.findByUsername(request.getUsername()).isPresent()) {
-            throw new IllegalArgumentException("Username already exists: " + request.getUsername());
+            throw new DuplicateUserException("Tên đăng nhập đã tồn tại: " + request.getUsername());
         }
 
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-            throw new IllegalArgumentException("Email already exists: " + request.getEmail());
+            throw new DuplicateUserException("Email đã được sử dụng: " + request.getEmail());
         }
 
         User.UserRole role = request.getRole() != null ? request.getRole() : User.UserRole.ROLE_CUSTOMER;
