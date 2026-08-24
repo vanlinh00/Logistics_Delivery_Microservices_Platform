@@ -1,0 +1,116 @@
+{
+  "description": "Elasticsearch 8.x Logistics DSL Query Cheatsheet",
+  "queries": {
+    "fullTextFuzzySearch": {
+      "method": "POST",
+      "endpoint": "/logistics_parcels/_search",
+      "body": {
+        "query": {
+          "bool": {
+            "must": [
+              {
+                "multi_match": {
+                  "query": "laptop dell hanoi",
+                  "fields": [
+                    "trackingNumber^8",
+                    "recipientPhone^5",
+                    "recipientName^3",
+                    "itemDescription^3",
+                    "recipientAddress^2",
+                    "senderName"
+                  ],
+                  "fuzziness": "AUTO",
+                  "prefix_length": 1,
+                  "operator": "or"
+                }
+              }
+            ],
+            "filter": [
+              { "term": { "currentStatus": "IN_TRANSIT" } },
+              { "term": { "destinationCity": "TP. Hồ Chí Minh" } },
+              { "range": { "shippingFee": { "gte": 20000, "lte": 100000 } } }
+            ]
+          }
+        },
+        "highlight": {
+          "fields": {
+            "recipientName": {},
+            "itemDescription": {},
+            "recipientAddress": {}
+          }
+        },
+        "sort": [
+          { "_score": { "order": "desc" } },
+          { "lastUpdatedAt": { "order": "desc" } }
+        ]
+      }
+    },
+    "autocompleteSuggester": {
+      "method": "POST",
+      "endpoint": "/logistics_parcels/_search",
+      "body": {
+        "query": {
+          "bool": {
+            "should": [
+              { "match": { "trackingNumber.suggest": { "query": "ORD-98", "boost": 5.0 } } },
+              { "match": { "recipientName.autocomplete": { "query": "Nguyen", "boost": 3.0 } } },
+              { "prefix": { "recipientPhone": "0984" } }
+            ]
+          }
+        },
+        "_source": ["trackingNumber", "recipientName", "recipientPhone", "destinationCity", "currentStatus"],
+        "size": 5
+      }
+    },
+    "geoDistanceRadiusSearch": {
+      "method": "POST",
+      "endpoint": "/logistics_parcels/_search",
+      "body": {
+        "query": {
+          "bool": {
+            "filter": {
+              "geo_distance": {
+                "distance": "15km",
+                "currentLocation": {
+                  "lat": 10.8015,
+                  "lon": 106.6644
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "facetedTermsAggregations": {
+      "method": "POST",
+      "endpoint": "/logistics_parcels/_search",
+      "body": {
+        "size": 0,
+        "aggs": {
+          "status_breakdown": {
+            "terms": {
+              "field": "currentStatus"
+            }
+          },
+          "top_destination_cities": {
+            "terms": {
+              "field": "destinationCity",
+              "size": 10
+            }
+          },
+          "shipping_fee_stats": {
+            "stats": {
+              "field": "shippingFee"
+            }
+          },
+          "daily_volume_histogram": {
+            "date_histogram": {
+              "field": "createdAt",
+              "calendar_interval": "day"
+            }
+          }
+        }
+      }
+    }
+  }
+}

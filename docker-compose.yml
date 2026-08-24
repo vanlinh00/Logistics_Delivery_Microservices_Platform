@@ -105,11 +105,13 @@ services:
       - DB_HOST=postgres
       - DB_NAME=tracking_db
       - REDIS_HOST=redis
+      - ELASTICSEARCH_URIS=http://elasticsearch:9200
       - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
       - EUREKA_HOST=service-registry
     depends_on:
       - postgres
       - redis
+      - elasticsearch
       - kafka
       - service-registry
     networks:
@@ -150,6 +152,53 @@ services:
       - postgres
       - redis
       - service-registry
+    networks:
+      - logistics-network
+
+  # ==========================================
+  # DISTRIBUTED SEARCH & ANALYTICS (ELASTICSEARCH & KIBANA)
+  # ==========================================
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.2
+    container_name: logistics-elasticsearch
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    environment:
+      - node.name=es-node-01
+      - cluster.name=logistics-cluster
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.security.http.ssl.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+      - ./infrastructure/elasticsearch/parcel-index-mapping.json:/usr/share/elasticsearch/config/parcel-index-mapping.json
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    networks:
+      - logistics-network
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.12.2
+    container_name: logistics-kibana
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
     networks:
       - logistics-network
 
@@ -249,3 +298,4 @@ networks:
 volumes:
   postgres-data:
   redis-data:
+  elasticsearch-data:

@@ -35,6 +35,7 @@ public class ResourceServerSecurityConfig {
                     "/actuator/**"
                 ).permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/tracking/**").permitAll()
+                .requestMatchers("/api/v1/search/**").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

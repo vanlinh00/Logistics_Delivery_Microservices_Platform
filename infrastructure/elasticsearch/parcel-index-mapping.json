@@ -1,0 +1,179 @@
+{
+  "settings": {
+    "number_of_shards": 3,
+    "number_of_replicas": 1,
+    "index.max_ngram_diff": 15,
+    "analysis": {
+      "filter": {
+        "autocomplete_filter": {
+          "type": "edge_ngram",
+          "min_gram": 2,
+          "max_ngram": 15
+        },
+        "vietnamese_folding": {
+          "type": "asciifolding",
+          "preserve_original": true
+        }
+      },
+      "analyzer": {
+        "autocomplete_index": {
+          "type": "custom",
+          "tokenizer": "standard",
+          "filter": [
+            "lowercase",
+            "vietnamese_folding",
+            "autocomplete_filter"
+          ]
+        },
+        "autocomplete_search": {
+          "type": "custom",
+          "tokenizer": "standard",
+          "filter": [
+            "lowercase",
+            "vietnamese_folding"
+          ]
+        },
+        "vietnamese_standard_analyzer": {
+          "type": "custom",
+          "tokenizer": "standard",
+          "filter": [
+            "lowercase",
+            "vietnamese_folding"
+          ]
+        }
+      }
+    }
+  },
+  "mappings": {
+    "properties": {
+      "id": {
+        "type": "keyword"
+      },
+      "trackingNumber": {
+        "type": "keyword",
+        "fields": {
+          "suggest": {
+            "type": "text",
+            "analyzer": "autocomplete_index",
+            "search_analyzer": "autocomplete_search"
+          },
+          "wildcard": {
+            "type": "wildcard"
+          }
+        }
+      },
+      "orderId": {
+        "type": "keyword"
+      },
+      "senderName": {
+        "type": "text",
+        "analyzer": "vietnamese_standard_analyzer",
+        "fields": {
+          "keyword": { "type": "keyword" },
+          "autocomplete": {
+            "type": "text",
+            "analyzer": "autocomplete_index",
+            "search_analyzer": "autocomplete_search"
+          }
+        }
+      },
+      "senderPhone": {
+        "type": "keyword"
+      },
+      "senderAddress": {
+        "type": "text",
+        "analyzer": "vietnamese_standard_analyzer"
+      },
+      "originCity": {
+        "type": "keyword"
+      },
+      "recipientName": {
+        "type": "text",
+        "analyzer": "vietnamese_standard_analyzer",
+        "fields": {
+          "keyword": { "type": "keyword" },
+          "autocomplete": {
+            "type": "text",
+            "analyzer": "autocomplete_index",
+            "search_analyzer": "autocomplete_search"
+          }
+        }
+      },
+      "recipientPhone": {
+        "type": "keyword"
+      },
+      "recipientAddress": {
+        "type": "text",
+        "analyzer": "vietnamese_standard_analyzer"
+      },
+      "destinationCity": {
+        "type": "keyword"
+      },
+      "destinationDistrict": {
+        "type": "keyword"
+      },
+      "currentStatus": {
+        "type": "keyword"
+      },
+      "statusDescription": {
+        "type": "text",
+        "analyzer": "vietnamese_standard_analyzer"
+      },
+      "currentHub": {
+        "type": "text",
+        "analyzer": "vietnamese_standard_analyzer",
+        "fields": {
+          "keyword": { "type": "keyword" }
+        }
+      },
+      "currentLocation": {
+        "type": "geo_point"
+      },
+      "weightKg": {
+        "type": "double"
+      },
+      "shippingFee": {
+        "type": "double"
+      },
+      "codAmount": {
+        "type": "double"
+      },
+      "shippingServiceType": {
+        "type": "keyword"
+      },
+      "assignedCarrierName": {
+        "type": "keyword"
+      },
+      "assignedCarrierPhone": {
+        "type": "keyword"
+      },
+      "itemDescription": {
+        "type": "text",
+        "analyzer": "vietnamese_standard_analyzer"
+      },
+      "tags": {
+        "type": "keyword"
+      },
+      "createdAt": {
+        "type": "date"
+      },
+      "lastUpdatedAt": {
+        "type": "date"
+      },
+      "estimatedDeliveryTime": {
+        "type": "date"
+      },
+      "eventTimeline": {
+        "type": "nested",
+        "properties": {
+          "eventId": { "type": "keyword" },
+          "status": { "type": "keyword" },
+          "location": { "type": "text", "analyzer": "vietnamese_standard_analyzer" },
+          "notes": { "type": "text" },
+          "coordinates": { "type": "geo_point" },
+          "timestamp": { "type": "date" }
+        }
+      }
+    }
+  }
+}

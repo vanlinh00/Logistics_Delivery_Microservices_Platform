@@ -29,6 +29,7 @@ import {
   GitBranch
 } from 'lucide-react';
 import { DevOpsLab } from './components/DevOpsLab';
+import { ElasticsearchLab } from './components/ElasticsearchLab';
 
 interface MicroserviceInfo {
   id: string;
@@ -113,6 +114,24 @@ const SERVICES: MicroserviceInfo[] = [
     status: 'UP',
     endpoints: ['/api/v1/notifications/send', '/api/v1/notifications/user/{id}'],
   },
+  {
+    id: 'elasticsearch',
+    name: 'Elasticsearch 8.12 Search Node',
+    port: 9200,
+    description: 'Distributed Lucene inverted index, Edge N-gram autocomplete, Geo-Distance filters & full-text fuzzy matching',
+    tech: ['Elasticsearch 8.12', 'Lucene 9.x', 'Spring Data ES'],
+    status: 'UP',
+    endpoints: ['/api/v1/search/parcels', '/api/v1/search/autocomplete', '/api/v1/search/geo-nearby', '/_cluster/health'],
+  },
+  {
+    id: 'kibana',
+    name: 'Kibana Analytics & DevTools',
+    port: 5601,
+    description: 'Index visualization dashboards, Query DSL testing console, telemetry & shard metrics',
+    tech: ['Kibana 8.12', 'DevTools', 'Logistics Dashboards'],
+    status: 'UP',
+    endpoints: ['/app/dev_tools#/console', '/app/kibana_overview'],
+  },
 ];
 
 const SAMPLE_ORDERS = [
@@ -149,7 +168,7 @@ const SAMPLE_ORDERS = [
 ];
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'topology' | 'orders' | 'commands' | 'architecture' | 'threading' | 'devops' | 'postman'>('topology');
+  const [activeTab, setActiveTab] = useState<'topology' | 'orders' | 'elasticsearch' | 'commands' | 'architecture' | 'threading' | 'devops' | 'postman'>('topology');
   const [copiedFile, setCopiedFile] = useState<string | null>(null);
   const [searchTrackingCode, setSearchTrackingCode] = useState('ORD-984210');
   const [orderList, setOrderList] = useState(SAMPLE_ORDERS);
@@ -279,6 +298,15 @@ export default function App() {
             >
               <Package className="h-3.5 w-3.5" />
               Order & Tracking Console
+            </button>
+            <button
+              onClick={() => setActiveTab('elasticsearch')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                activeTab === 'elasticsearch' ? 'bg-amber-500 text-slate-950 font-bold shadow-lg shadow-amber-500/20' : 'text-amber-400/90 hover:text-amber-200 hover:bg-amber-500/10'
+              }`}
+            >
+              <Database className="h-3.5 w-3.5 text-amber-300" />
+              Elasticsearch 8.12 Search
             </button>
             <button
               onClick={() => setActiveTab('commands')}
@@ -844,6 +872,9 @@ export default function App() {
             </div>
           </div>
         )}
+
+        {/* TAB: ELASTICSEARCH 8.12 DISTRIBUTED SEARCH LAB */}
+        {activeTab === 'elasticsearch' && <ElasticsearchLab />}
 
         {/* TAB: DEVOPS, DOCKER & KUBERNETES LAB */}
         {activeTab === 'devops' && <DevOpsLab />}
