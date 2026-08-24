@@ -33,6 +33,7 @@ public class OrderService {
     private final AddressValidationService addressService;
     private final RedissonClient redissonClient;
     private final ObjectMapper objectMapper;
+    private final com.logistics.order.saga.OrderSagaOrchestrator sagaOrchestrator;
 
     private static final String TRACKING_PREFIX = "VNX";
     private final SecureRandom random = new SecureRandom();
@@ -110,6 +111,13 @@ public class OrderService {
             outboxRepository.save(outbox);
         } catch (Exception e) {
             log.error("Failed to serialize order outbox payload", e);
+        }
+
+        // Trigger Saga Orchestration workflow across fleet & payment services
+        try {
+            sagaOrchestrator.startSaga(savedOrder);
+        } catch (Exception e) {
+            log.warn("Failed to initiate Saga workflow asynchronously: {}", e.getMessage());
         }
 
         return savedOrder;
