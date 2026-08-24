@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logistics-global-config
+  namespace: logistics-prod
+data:
+  SPRING_PROFILES_ACTIVE: "prod"
+  EUREKA_HOST: "service-registry.logistics-prod.svc.cluster.local"
+  EUREKA_PORT: "8761"
+  KAFKA_BOOTSTRAP_SERVERS: "kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
+  REDIS_HOST: "redis-master.logistics-prod.svc.cluster.local"
+  REDIS_PORT: "6379"
+  DB_HOST: "postgres-postgresql.logistics-prod.svc.cluster.local"
+  DB_PORT: "5432"
+  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info,metrics,prometheus"
+  LOGGING_LEVEL_COM_LOGISTICS: "INFO"

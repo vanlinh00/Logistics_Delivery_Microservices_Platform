@@ -23,8 +23,12 @@ import {
   Download,
   Copy,
   Check,
-  FileCode
+  FileCode,
+  Boxes,
+  Cloud,
+  GitBranch
 } from 'lucide-react';
+import { DevOpsLab } from './components/DevOpsLab';
 
 interface MicroserviceInfo {
   id: string;
@@ -145,7 +149,7 @@ const SAMPLE_ORDERS = [
 ];
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'topology' | 'orders' | 'commands' | 'architecture' | 'threading' | 'postman'>('topology');
+  const [activeTab, setActiveTab] = useState<'topology' | 'orders' | 'commands' | 'architecture' | 'threading' | 'devops' | 'postman'>('topology');
   const [copiedFile, setCopiedFile] = useState<string | null>(null);
   const [searchTrackingCode, setSearchTrackingCode] = useState('ORD-984210');
   const [orderList, setOrderList] = useState(SAMPLE_ORDERS);
@@ -302,6 +306,15 @@ export default function App() {
             >
               <Cpu className="h-3.5 w-3.5" />
               Multi-Threading Engine
+            </button>
+            <button
+              onClick={() => setActiveTab('devops')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                activeTab === 'devops' ? 'bg-cyan-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Cloud className="h-3.5 w-3.5" />
+              DevOps, Docker & K8s
             </button>
             <button
               onClick={() => setActiveTab('postman')}
@@ -831,6 +844,9 @@ export default function App() {
             </div>
           </div>
         )}
+
+        {/* TAB: DEVOPS, DOCKER & KUBERNETES LAB */}
+        {activeTab === 'devops' && <DevOpsLab />}
 
         {/* TAB 5: POSTMAN COLLECTION */}
         {activeTab === 'postman' && (

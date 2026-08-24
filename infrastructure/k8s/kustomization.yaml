@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: logistics-prod
+
+resources:
+  - 00-namespace.yaml
+  - 01-rbac.yaml
+  - 02-configmaps.yaml
+  - 03-secrets.yaml
+  - 04-ingress.yaml
+  - 05-hpa.yaml
+  - 06-pdb.yaml
+  - deployments/order-service.yaml
+  - deployments/api-gateway.yaml
+  - deployments/frontend.yaml
+
+commonLabels:
+  app.kubernetes.io/managed-by: kustomize
+  app.kubernetes.io/part-of: logistics-cloud-platform
