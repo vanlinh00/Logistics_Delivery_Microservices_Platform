@@ -1,59 +1,62 @@
 package com.logistics.order.service;
 
 import com.logistics.order.dto.OrderDTOs;
+import com.logistics.order.factory.PricingStrategyFactory;
+import com.logistics.order.strategy.PriceBreakdown;
+import com.logistics.order.strategy.PricingContext;
+import com.logistics.order.strategy.ShippingPricingStrategy;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-
+/**
+ * Service acting as a High-Level Coordinator for price calculations.
+ * 
+ * SOLID Principles applied:
+ * - Single Responsibility Principle (SRP): Coordinates requests and maps DTOs.
+ * - Open/Closed Principle (OCP): Pricing algorithms are decoupled into individual Strategy implementations.
+ * - Dependency Inversion Principle (DIP): Injects PricingStrategyFactory instead of hardcoding pricing math.
+ */
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class PricingCalculationService {
 
-    private static final BigDecimal BASE_RATE = new BigDecimal("25000"); // 25,000 VND base
-    private static final BigDecimal RATE_PER_KM = new BigDecimal("4000"); // 4,000 VND/km
-    private static final BigDecimal RATE_PER_KG_EXTRA = new BigDecimal("5000"); // 5,000 VND/kg beyond 2kg
-    private static final BigDecimal INSURANCE_RATE = new BigDecimal("0.005"); // 0.5% of declared value
+    private final PricingStrategyFactory pricingStrategyFactory;
 
     public OrderDTOs.PriceCalculationResponse calculatePrice(OrderDTOs.PriceCalculationRequest request) {
-        BigDecimal baseFee = BASE_RATE;
-        
-        // Distance fee
-        double distance = request.getDistanceKm() != null ? Math.max(1.0, request.getDistanceKm()) : 5.0;
-        BigDecimal distanceSurcharge = RATE_PER_KM.multiply(BigDecimal.valueOf(distance)).setScale(2, RoundingMode.HALF_UP);
+        // 1. Build decoupled context (SRP)
+        PricingContext context = PricingContext.builder()
+                .weightKg(request.getWeightKg())
+                .distanceKm(request.getDistanceKm())
+                .declaredValue(request.getDeclaredValue())
+                .codAmount(request.getCodAmount())
+                .deliveryType(request.isExpressDelivery() ? PricingContext.DeliveryType.EXPRESS : PricingContext.DeliveryType.STANDARD)
+                .build();
 
-        // Weight fee: items above 2kg have extra charge
-        BigDecimal weightSurcharge = BigDecimal.ZERO;
-        if (request.getWeightKg() > 2.0) {
-            double extraKg = request.getWeightKg() - 2.0;
-            weightSurcharge = RATE_PER_KG_EXTRA.multiply(BigDecimal.valueOf(extraKg)).setScale(2, RoundingMode.HALF_UP);
-        }
+        // 2. Resolve strategy dynamically using Factory Pattern
+        ShippingPricingStrategy strategy = pricingStrategyFactory.resolveStrategy(
+                request.getWeightKg(),
+                request.isExpressDelivery(),
+                false
+        );
 
-        // Insurance fee
-        BigDecimal insuranceFee = BigDecimal.ZERO;
-        if (request.getDeclaredValue() != null && request.getDeclaredValue().compareTo(BigDecimal.ZERO) > 0) {
-            insuranceFee = request.getDeclaredValue().multiply(INSURANCE_RATE).setScale(2, RoundingMode.HALF_UP);
-        }
+        log.info("Calculating shipping price using Strategy: [{}]", strategy.getClass().getSimpleName());
 
-        // COD processing fee
-        BigDecimal codFee = BigDecimal.ZERO;
-        if (request.getCodAmount() != null && request.getCodAmount().compareTo(BigDecimal.ZERO) > 0) {
-            codFee = new BigDecimal("5000"); // 5k flat COD fee
-        }
+        // 3. Execute Strategy Pattern calculation
+        PriceBreakdown breakdown = strategy.calculatePrice(context);
 
-        BigDecimal total = baseFee.add(distanceSurcharge).add(weightSurcharge).add(insuranceFee).add(codFee);
-        if (request.isExpressDelivery()) {
-            total = total.multiply(new BigDecimal("1.30")).setScale(2, RoundingMode.HALF_UP); // +30% for express
-        }
-
+        // 4. Map to response DTO
         return OrderDTOs.PriceCalculationResponse.builder()
-                .baseFee(baseFee)
-                .distanceSurcharge(distanceSurcharge)
-                .weightSurcharge(weightSurcharge)
-                .insuranceFee(insuranceFee)
-                .codFee(codFee)
-                .totalShippingFee(total)
-                .currency("VND")
-                .estimatedDeliveryHours(request.isExpressDelivery() ? "4 - 8 hours" : "24 - 48 hours")
+                .baseFee(breakdown.getBaseFee())
+                .distanceSurcharge(breakdown.getDistanceSurcharge())
+                .weightSurcharge(breakdown.getWeightSurcharge())
+                .insuranceFee(breakdown.getInsuranceFee())
+                .codFee(breakdown.getCodFee())
+                .totalShippingFee(breakdown.getTotalShippingFee())
+                .currency(breakdown.getCurrency())
+                .estimatedDeliveryHours(breakdown.getEstimatedDeliveryHours())
                 .build();
     }
 }
+

@@ -2,6 +2,7 @@ package com.logistics.notification.controller;
 
 import com.logistics.notification.model.NotificationLog;
 import com.logistics.notification.repository.NotificationLogRepository;
+import com.logistics.notification.service.NotificationDispatcherService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,7 @@ import java.util.List;
 public class NotificationController {
 
     private final NotificationLogRepository repository;
+    private final NotificationDispatcherService dispatcherService;
 
     @GetMapping("/logs")
     @Operation(summary = "List recent notification logs by recipient")
@@ -28,9 +30,13 @@ public class NotificationController {
     }
 
     @PostMapping("/send-manual")
-    @Operation(summary = "Dispatch urgent SMS / Email alert manually")
+    @Operation(summary = "Dispatch urgent SMS / Email / Zalo alert manually using Strategy Pattern")
     public ResponseEntity<NotificationLog> sendManual(@RequestBody NotificationLog log) {
-        log.setStatus(NotificationLog.Status.SENT);
-        return ResponseEntity.ok(repository.save(log));
+        if (log.getChannel() == null) {
+            log.setChannel(NotificationLog.Channel.SMS);
+        }
+        NotificationLog result = dispatcherService.dispatch(log);
+        return ResponseEntity.ok(result);
     }
 }
+

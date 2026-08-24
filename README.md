@@ -65,6 +65,60 @@ graph TD
 - Centralized IAM service (`user-auth-service`) signs HMAC-SHA256 JWT tokens.
 - Every downstream service acts as an independent **Resource Server** using custom `JwtAuthenticationFilter` and stateless `SecurityFilterChain`.
 
+### 5. 🧩 Gang of Four (GoF) Design Patterns & SOLID Principles
+
+```
+                                  [ Client / OrderService ]
+                                             │
+                       ┌─────────────────────┴─────────────────────┐
+                       ▼                                           ▼
+             [ Singleton Pattern ]                        [ Factory Pattern ]
+          LogisticsConfigRegistry                      PricingStrategyFactory
+       (Bill Pugh Lazy Initialization)               (Open/Closed Dynamic Lookup)
+                       │                                           │
+                       └─────────────────────┬─────────────────────┘
+                                             ▼
+                                   [ Strategy Pattern ]
+                                 ShippingPricingStrategy
+                                             │
+         ┌───────────────────┬───────────────┴───────────────┬───────────────────┐
+         ▼                   ▼                               ▼                   ▼
+[ StandardStrategy ]  [ ExpressStrategy ]          [ HeavyFreightStrategy ] [ ColdChainStrategy ]
+ (24-48h Road Van)    (4-8h Priority Air)           (Pallet / Tailgate)     (Temp-Controlled)
+```
+
+#### A. 🎯 SOLID Principles in Action
+1. **S - Single Responsibility Principle (SRP)**:
+   - `PricingContext`: Only encapsulates calculation input parameters.
+   - Each Strategy (e.g. `ExpressShippingPricingStrategy`): Only handles priority formula math.
+   - `PricingCalculationService`: Coordinates request flow and maps DTOs.
+2. **O - Open/Closed Principle (OCP)**:
+   - To add a new tier like `DroneDeliveryPricingStrategy` or `InternationalPricingStrategy`, you only implement `ShippingPricingStrategy`.
+   - `PricingStrategyFactory` auto-registers all beans implementing `ShippingPricingStrategy` without modifying existing classes.
+3. **L - Liskov Substitution Principle (LSP)**:
+   - Any `ShippingPricingStrategy` implementation can replace another without altering caller correctness.
+4. **I - Interface Segregation Principle (ISP)**:
+   - `ShippingPricingStrategy` and `NotificationChannelStrategy` expose strictly necessary methods without bloat.
+5. **D - Dependency Inversion Principle (DIP)**:
+   - High-level services (`PricingCalculationService`, `NotificationDispatcherService`) depend on abstract strategy interfaces, injected via Spring DI and Factories.
+
+#### B. 🏭 Factory Pattern
+- **`PricingStrategyFactory`** (`order-service`): Resolves the appropriate pricing strategy by `DeliveryType` or dynamically evaluates shipment weight/flags.
+- **`NotificationStrategyFactory`** (`notification-service`): Resolves the multi-channel notification sender (`SMS`, `EMAIL`, `ZALO_ZNS`, `PUSH`).
+
+#### C. 👑 Singleton Pattern
+- **`LogisticsConfigRegistry`** (`order-service`): Implements the **Bill Pugh Singleton** (Initialization-on-Demand Holder Idiom) ensuring 100% thread-safe, lazy-initialized global access to system fee parameters, dynamic fuel multipliers, and region metadata without synchronization bottlenecks.
+
+#### D. ♟️ Strategy Pattern
+- **Dynamic Logistics Pricing**:
+  - `StandardShippingPricingStrategy`: Standard road courier rate ($25,000 VND base + distance + weight tiers).
+  - `ExpressShippingPricingStrategy`: Same-day 4-8 hour priority with expedited transit multiplier.
+  - `HeavyFreightPricingStrategy`: Bulk cargo with tailgate truck & forklift handling surcharges.
+  - `ColdChainPricingStrategy`: Refrigerated container thermal management & dry-ice surcharge.
+- **Multi-Channel Notification Dispatcher**:
+  - `SmsNotificationStrategy`, `EmailNotificationStrategy`, `ZaloZnsNotificationStrategy`, `PushNotificationStrategy`.
+
+
 ---
 
 ## 📦 Microservices Port & Resource Allocation
