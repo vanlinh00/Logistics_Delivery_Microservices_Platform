@@ -25,6 +25,7 @@ public class OrderController {
 
     private final OrderService orderService;
     private final PricingCalculationService pricingService;
+    private final com.logistics.order.service.ParallelPricingAggregatorService parallelPricingService;
 
     @PostMapping
     @Operation(summary = "Create a new shipment order", description = "Validates address, calculates shipping fees, persists order and writes to Transactional Outbox")
@@ -58,6 +59,13 @@ public class OrderController {
     public ResponseEntity<ApiResponse<OrderDTOs.PriceCalculationResponse>> calculatePrice(
             @Valid @RequestBody OrderDTOs.PriceCalculationRequest request) {
         return ResponseEntity.ok(ApiResponse.ok(pricingService.calculatePrice(request), "Price calculated successfully"));
+    }
+
+    @PostMapping("/calculate-tiers-concurrently")
+    @Operation(summary = "Multi-threaded parallel calculation across all shipping tiers (Standard, Express, Freight, Cold Chain)")
+    public ResponseEntity<ApiResponse<java.util.List<com.logistics.order.strategy.PriceBreakdown>>> calculateTiersConcurrently(
+            @Valid @RequestBody OrderDTOs.PriceCalculationRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(parallelPricingService.calculateAllTiersConcurrently(request), "Parallel multi-threaded tier calculation completed"));
     }
 }
 

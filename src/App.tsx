@@ -145,7 +145,7 @@ const SAMPLE_ORDERS = [
 ];
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'topology' | 'orders' | 'commands' | 'architecture' | 'postman'>('topology');
+  const [activeTab, setActiveTab] = useState<'topology' | 'orders' | 'commands' | 'architecture' | 'threading' | 'postman'>('topology');
   const [copiedFile, setCopiedFile] = useState<string | null>(null);
   const [searchTrackingCode, setSearchTrackingCode] = useState('ORD-984210');
   const [orderList, setOrderList] = useState(SAMPLE_ORDERS);
@@ -158,6 +158,56 @@ export default function App() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [creationSuccess, setCreationSuccess] = useState<string | null>(null);
+
+  // Multi-threading Lab State
+  const [threadingPricingRunning, setThreadingPricingRunning] = useState(false);
+  const [threadingPricingResults, setThreadingPricingResults] = useState<any[] | null>(null);
+  const [broadcastRunning, setBroadcastRunning] = useState(false);
+  const [broadcastResults, setBroadcastResults] = useState<any[] | null>(null);
+  const [driverRankRunning, setDriverRankRunning] = useState(false);
+  const [driverRankResults, setDriverRankResults] = useState<any[] | null>(null);
+
+  const runParallelPricingSimulation = () => {
+    setThreadingPricingRunning(true);
+    setThreadingPricingResults(null);
+    setTimeout(() => {
+      setThreadingPricingResults([
+        { tier: 'STANDARD', baseRate: '22,000 đ', weightSurcharge: '7,500 đ', total: '29,500 đ', thread: 'pricing-async-1', timeMs: 14 },
+        { tier: 'EXPRESS', baseRate: '45,000 đ', weightSurcharge: '15,000 đ', total: '60,000 đ', thread: 'pricing-async-2', timeMs: 16 },
+        { tier: 'HEAVY_FREIGHT', baseRate: '120,000 đ', weightSurcharge: '38,000 đ', total: '158,000 đ', thread: 'pricing-async-3', timeMs: 19 },
+        { tier: 'COLD_CHAIN', baseRate: '180,000 đ', weightSurcharge: '55,000 đ', total: '235,000 đ', thread: 'pricing-async-4', timeMs: 22 },
+      ]);
+      setThreadingPricingRunning(false);
+    }, 600);
+  };
+
+  const runParallelBroadcastSimulation = () => {
+    setBroadcastRunning(true);
+    setBroadcastResults(null);
+    setTimeout(() => {
+      setBroadcastResults([
+        { channel: 'EMAIL', recipient: 'customer@enterprise.com', status: 'SENT', thread: 'notif-worker-1', latency: '42ms' },
+        { channel: 'SMS', recipient: '+84988123456', status: 'SENT', thread: 'notif-worker-2', latency: '65ms' },
+        { channel: 'ZALO_ZNS', recipient: '0988123456', status: 'SENT', thread: 'notif-worker-3', latency: '38ms' },
+        { channel: 'PUSH_FCM', recipient: 'fcm_token_device_99', status: 'SENT', thread: 'notif-worker-4', latency: '29ms' },
+      ]);
+      setBroadcastRunning(false);
+    }, 700);
+  };
+
+  const runParallelDriverRanking = () => {
+    setDriverRankRunning(true);
+    setDriverRankResults(null);
+    setTimeout(() => {
+      setDriverRankResults([
+        { driver: 'Nguyễn Văn Nam (Fleet-04)', distance: '1.2 km', eta: '5 phút', score: 94.0, thread: 'fleet-matcher-1', vehicle: 'MOTORBIKE' },
+        { driver: 'Lê Hoàng Hải (Shipper-12)', distance: '2.8 km', eta: '9 phút', score: 86.0, thread: 'fleet-matcher-2', vehicle: 'MOTORBIKE' },
+        { driver: 'Trần Đình Trọng (Fleet-09)', distance: '4.5 km', eta: '12 phút', score: 77.5, thread: 'fleet-matcher-3', vehicle: 'VAN_500KG' },
+        { driver: 'Võ Minh Quân (Truck-02)', distance: '6.1 km', eta: '16 phút', score: 69.5, thread: 'fleet-matcher-4', vehicle: 'TRUCK_2T' },
+      ]);
+      setDriverRankRunning(false);
+    }, 550);
+  };
 
   const handleCreateOrder = (e: React.FormEvent) => {
     e.preventDefault();
@@ -243,6 +293,15 @@ export default function App() {
             >
               <Layers className="h-3.5 w-3.5" />
               Architecture Specs
+            </button>
+            <button
+              onClick={() => setActiveTab('threading')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                activeTab === 'threading' ? 'bg-emerald-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Cpu className="h-3.5 w-3.5" />
+              Multi-Threading Engine
             </button>
             <button
               onClick={() => setActiveTab('postman')}
@@ -575,6 +634,199 @@ export default function App() {
                 <p className="text-slate-400 leading-relaxed">
                   Truyền tọa độ GPS trực tiếp tới khách hàng và quản lý vận hành với độ trễ dưới 50ms qua kênh WebSocket kết nối Redis.
                 </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB: MULTI-THREADING ENGINE */}
+        {activeTab === 'threading' && (
+          <div className="space-y-6">
+            {/* Header / Intro */}
+            <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-9 w-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                    <Cpu className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-white">Multi-Threading & Concurrent Async Worker Engine</h3>
+                    <p className="text-xs text-slate-400">
+                      Cấu hình ThreadPoolTaskExecutor, CompletableFuture, Barrier Synchronization & Parallel Dispatching trong Spring Boot
+                    </p>
+                  </div>
+                </div>
+                <span className="px-2.5 py-1 text-xs rounded bg-emerald-950/60 border border-emerald-800 text-emerald-300 font-mono">
+                  ThreadPoolExecutor: RUNNING
+                </span>
+              </div>
+
+              {/* Thread Pools Overview */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="bg-slate-950 p-3.5 rounded-lg border border-slate-800/80 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-blue-400">outboxTaskExecutor</span>
+                    <span className="text-[10px] font-mono text-slate-400">order-service</span>
+                  </div>
+                  <p className="text-xs text-slate-300 font-mono">Core: 5 | Max: 15</p>
+                  <p className="text-[11px] text-slate-500">Queue: 200 • CallerRunsPolicy</p>
+                </div>
+                <div className="bg-slate-950 p-3.5 rounded-lg border border-slate-800/80 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-emerald-400">pricingTaskExecutor</span>
+                    <span className="text-[10px] font-mono text-slate-400">order-service</span>
+                  </div>
+                  <p className="text-xs text-slate-300 font-mono">Core: 4 | Max: 10</p>
+                  <p className="text-[11px] text-slate-500">Parallel 4 Tiers • CompletableFuture</p>
+                </div>
+                <div className="bg-slate-950 p-3.5 rounded-lg border border-slate-800/80 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-amber-400">notificationTaskExecutor</span>
+                    <span className="text-[10px] font-mono text-slate-400">notification-service</span>
+                  </div>
+                  <p className="text-xs text-slate-300 font-mono">Core: 10 | Max: 30</p>
+                  <p className="text-[11px] text-slate-500">Queue: 500 • Multi-Channel Broadcast</p>
+                </div>
+                <div className="bg-slate-950 p-3.5 rounded-lg border border-slate-800/80 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-indigo-400">fleetMatchingExecutor</span>
+                    <span className="text-[10px] font-mono text-slate-400">pickup-fleet-service</span>
+                  </div>
+                  <p className="text-xs text-slate-300 font-mono">Core: 6 | Max: 20</p>
+                  <p className="text-[11px] text-slate-500">Haversine Spatial Ranking Worker</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Interactive Multi-Threading Scenarios */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Scenario 1: Parallel 4-Tier Pricing Aggregator */}
+              <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 space-y-4 flex flex-col justify-between">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="h-6 w-6 rounded bg-emerald-500/10 text-emerald-400 font-mono text-xs flex items-center justify-center font-bold">1</span>
+                    <h4 className="font-semibold text-white text-sm">Parallel Pricing Aggregator</h4>
+                  </div>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Khởi tạo 4 Worker Threads đồng thời để tính toán cước phí cho 4 dịch vụ (Standard, Express, Freight, Cold Chain) và tổng hợp kết quả bằng <code className="text-emerald-400">CompletableFuture.allOf()</code>.
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  {threadingPricingResults && (
+                    <div className="space-y-1.5 bg-slate-950 p-3 rounded-lg border border-slate-800 text-[11px]">
+                      {threadingPricingResults.map((r, i) => (
+                        <div key={i} className="flex items-center justify-between border-b border-slate-800/60 pb-1 last:border-0 last:pb-0">
+                          <span className="font-semibold text-slate-200">{r.tier}</span>
+                          <span className="font-mono text-emerald-400">{r.total}</span>
+                          <span className="text-[10px] font-mono text-slate-500">[{r.thread} • {r.timeMs}ms]</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <button
+                    onClick={runParallelPricingSimulation}
+                    disabled={threadingPricingRunning}
+                    className="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-all"
+                  >
+                    {threadingPricingRunning ? (
+                      <>
+                        <RefreshCw className="h-3.5 w-3.5 animate-spin" /> Đang chạy 4 Threads song song...
+                      </>
+                    ) : (
+                      <>
+                        <Play className="h-3.5 w-3.5" /> Chạy Parallel Pricing (POST /calculate-tiers-concurrently)
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Scenario 2: Multi-Channel Broadcast */}
+              <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 space-y-4 flex flex-col justify-between">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="h-6 w-6 rounded bg-amber-500/10 text-amber-400 font-mono text-xs flex items-center justify-center font-bold">2</span>
+                    <h4 className="font-semibold text-white text-sm">Concurrent Multi-Channel Alert</h4>
+                  </div>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Phát tán thông báo khẩn cấp tới SMS, Email, Zalo ZNS và FCM Push đồng thời trên các luồng độc lập trong Thread Pool thay vì gửi tuần tự.
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  {broadcastResults && (
+                    <div className="space-y-1.5 bg-slate-950 p-3 rounded-lg border border-slate-800 text-[11px]">
+                      {broadcastResults.map((b, i) => (
+                        <div key={i} className="flex items-center justify-between border-b border-slate-800/60 pb-1 last:border-0 last:pb-0">
+                          <span className="font-semibold text-amber-300">{b.channel}</span>
+                          <span className="text-emerald-400 font-mono text-[10px]">{b.status}</span>
+                          <span className="text-[10px] font-mono text-slate-500">[{b.thread} • {b.latency}]</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <button
+                    onClick={runParallelBroadcastSimulation}
+                    disabled={broadcastRunning}
+                    className="w-full py-2 px-3 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-all"
+                  >
+                    {broadcastRunning ? (
+                      <>
+                        <RefreshCw className="h-3.5 w-3.5 animate-spin" /> Đang broadcast 4 kênh đồng thời...
+                      </>
+                    ) : (
+                      <>
+                        <Play className="h-3.5 w-3.5" /> Chạy Parallel Broadcast (POST /broadcast-parallel)
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Scenario 3: Geo-Spatial Driver Ranking */}
+              <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 space-y-4 flex flex-col justify-between">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="h-6 w-6 rounded bg-indigo-500/10 text-indigo-400 font-mono text-xs flex items-center justify-center font-bold">3</span>
+                    <h4 className="font-semibold text-white text-sm">Parallel Fleet Spatial Ranking</h4>
+                  </div>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Tính toán khoảng cách Haversine và ước lượng ETA cho toàn bộ danh sách tài xế khả dụng song song trên worker threads để tìm tài xế tối ưu nhất.
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  {driverRankResults && (
+                    <div className="space-y-1.5 bg-slate-950 p-3 rounded-lg border border-slate-800 text-[11px]">
+                      {driverRankResults.map((d, i) => (
+                        <div key={i} className="flex items-center justify-between border-b border-slate-800/60 pb-1 last:border-0 last:pb-0">
+                          <span className="font-semibold text-slate-200 truncate max-w-[120px]">{d.driver}</span>
+                          <span className="font-mono text-indigo-400">{d.distance} ({d.eta})</span>
+                          <span className="text-[10px] font-mono text-slate-500">Score: {d.score}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <button
+                    onClick={runParallelDriverRanking}
+                    disabled={driverRankRunning}
+                    className="w-full py-2 px-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-all"
+                  >
+                    {driverRankRunning ? (
+                      <>
+                        <RefreshCw className="h-3.5 w-3.5 animate-spin" /> Đang xếp hạng tài xế song song...
+                      </>
+                    ) : (
+                      <>
+                        <Play className="h-3.5 w-3.5" /> Chạy Spatial Ranker (GET /rank-drivers-concurrently)
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
