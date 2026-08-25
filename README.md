@@ -5,9 +5,10 @@
 [![Apache Kafka](https://img.shields.io/badge/Apache%20Kafka-3.7.0-red.svg)](https://kafka.apache.org/)
 [![Redis](https://img.shields.io/badge/Redis-7.2-red.svg)](https://redis.io/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16.1-blue.svg)](https://www.postgresql.org/)
-[![Architecture](https://img.shields.io/badge/Pattern-Saga%20%2B%20Outbox-orange.svg)]()
+[![Liquibase](https://img.shields.io/badge/Liquibase-4.29.2-blue.svg)](https://www.liquibase.org/)
+[![Architecture](https://img.shields.io/badge/Pattern-Saga%20%2B%20Outbox%20%2B%20RBAC-orange.svg)]()
 
-Production-grade, event-driven Logistics & Parcel Delivery Microservices ecosystem built with **Spring Boot 3.4**, **Apache Kafka**, **Redis Enterprise Caching**, **PostgreSQL**, and **Docker**.
+Production-grade, event-driven Logistics & Parcel Delivery Microservices ecosystem built with **Spring Boot 3.4**, **Apache Kafka**, **Redis Enterprise Caching**, **PostgreSQL**, **Liquibase**, and **Docker**.
 
 ---
 
@@ -15,14 +16,14 @@ Production-grade, event-driven Logistics & Parcel Delivery Microservices ecosyst
 
 ```mermaid
 graph TD
-    Client([Client / Postman / Mobile App]) -->|HTTP REST| Gateway[API Gateway :8000]
+    Client([Client / Postman / Web / Mobile App]) -->|HTTP REST| Gateway[API Gateway :8000]
     
-    Gateway -->|JWT Validate| AuthService[User & IAM Auth Service :8086]
-    Gateway -->|Orders & Pricing| OrderService[Order Lifecycle Service :8081]
+    Gateway -->|JWT Validate & RBAC| AuthService[User Auth & IAM Service :8080 / :8086]
+    Gateway -->|Orders & Dynamic Pricing| OrderService[Order Lifecycle Service :8081]
     Gateway -->|Fleet & Dispatch| FleetService[Pickup & Fleet Service :8082]
-    Gateway -->|Fulfillment & Hub| FulfillmentService[Hub Fulfillment & POD :8083]
-    Gateway -->|GPS & Timeline| TrackingService[Real-Time Tracking Service :8084]
-    Gateway -->|Notifications| NotifService[Notification Service :8085]
+    Gateway -->|Fulfillment & POD| FulfillmentService[Hub Fulfillment & POD :8083]
+    Gateway -->|GPS Streams & Timeline| TrackingService[Real-Time Tracking Service :8084]
+    Gateway -->|Multi-Channel Alerts| NotifService[Notification Service :8085]
 
     OrderService <-->|Saga Commands & Events| Kafka[(Apache Kafka Cluster)]
     FleetService <-->|Saga Commands & Events| Kafka
@@ -32,6 +33,7 @@ graph TD
     OrderService --- Redis[(Redis Cache & Redisson Locks)]
     TrackingService --- Redis
     FleetService --- Redis
+    AuthService --- Redis
 
     OrderService --> DB1[(orders_db :5433)]
     FleetService --> DB2[(fleet_db :5433)]
@@ -42,15 +44,112 @@ graph TD
 
 ---
 
+## 🔐 User Authentication & Identity Management (`user-auth-service`)
+
+The `user-auth-service` manages identity, authentication, user profiles, and dynamic permission evaluation.
+
+### Key Capabilities:
+- **Stateless JWT Authentication**: Generates HMAC-SHA256 signed access tokens with custom claims (User ID, Username, Email, Role, Database Permissions).
+- **BCrypt Password Hashing**: Passwords stored as BCrypt salted hashes (`cost factor = 10`).
+- **Dynamic Database-Driven RBAC**: Permissions are resolved dynamically from PostgreSQL join tables (`roles`, `permissions`, `role_permissions`) with no hardcoded fallback logic.
+- **Two-Factor Authentication (2FA / MFA)**: Google Authenticator TOTP time-based one-time password integration.
+- **Redis Token Blacklisting**: Instant token invalidation upon user logout.
+- **Audit Logging**: Asynchronous recording of login attempts, failed credentials, and MFA audits in `auth_audit_logs`.
+
+---
+
+## 👥 Seeded Test Accounts & Default Passwords
+
+All pre-seeded test accounts use the standardized password: **`Test123456@`**
+
+| Username | Email | Role | Default Password | Permissions Overview |
+| :--- | :--- | :--- | :--- | :--- |
+| **`admin`** | `admin@logistics.com` | `ROLE_ADMIN` | `Test123456@` | Full system access (`users:*`, `orders:*`, `fleet:*`, `system:manage`) |
+| **`courier01`** | `courier1@logistics.com` | `ROLE_COURIER` | `Test123456@` | Delivery execution (`orders:pod:upload`, `fleet:status:toggle`, `tracking:push:location`) |
+| **`merchant01`** | `merchant1@logistics.com` | `ROLE_MERCHANT` | `Test123456@` | Merchant store access (`orders:create`, `merchant:profile:manage`, `inventory:sync`) |
+| **`dispatcher01`**| `dispatcher1@logistics.com`| `ROLE_DISPATCHER`| `Test123456@` | Fleet operations (`orders:assign`, `fleet:route:optimize`, `fleet:read`) |
+| **`user001`** | `test1@gmail.com` | `ROLE_CUSTOMER` | `Test123456@` | Customer portal (`orders:read:self`, `orders:create`, `tracking:read`) |
+| **`user002`** | `test2@gmail.com` | `ROLE_CUSTOMER` | `Test123456@` | Customer portal (`orders:read:self`, `orders:create`, `tracking:read`) |
+
+---
+
+## 🗄️ Database Migrations with Liquibase
+
+Database versioning and initial data population are managed via Liquibase changelogs:
+
+- **Master Changelog**: `src/main/resources/db/changelog/db.changelog-master.xml`
+- **Schema Changeset**: `001-create-schema.xml` (author: `Vanlinh00`)
+  - `permissions`, `roles`, `role_permissions`, `users`, `courier_profiles`, `merchant_profiles`, `auth_audit_logs`
+- **Initial Data Load Changeset**: `002-load-initial-data.xml` (author: `Vanlinh00`)
+  - Loads data via `<loadData>` from CSV files in `src/main/resources/db/data/`:
+    - `permissions.csv`
+    - `roles.csv`
+    - `role_permissions.csv`
+    - `users.csv`
+
+---
+
+## 🌐 Standardized Message & Error Code System (`MessageCode`)
+
+All API responses follow the standardized enterprise response wrapper and `i.xx.fw.*` message code contract:
+
+### Code Definition (`MessageCode.java`)
+```java
+@Getter
+@RequiredArgsConstructor
+public enum MessageCode {
+    // 2xx Success Codes
+    SUCCESS("i.xx.fw.200"),
+    CREATED("i.xx.fw.201"),
+
+    // 4xx Client Error Codes
+    BAD_REQUEST("i.xx.fw.400"),
+    UNAUTHORIZED("i.xx.fw.401"),
+    FORBIDDEN("i.xx.fw.403"),
+    NOT_FOUND("i.xx.fw.404"),
+    GROUP_NOT_FOUND("i.xx.fw.405"),
+    USER_NOT_FOUND("i.xx.fw.406"),
+    ACCOUNT_INACTIVE("i.xx.fw.407"),
+    USER_ALREADY_EXISTS("i.xx.fw.408"),
+    CONFLICT("i.xx.fw.409"),
+    TOKEN_INVALID("i.xx.fw.410"),
+    VALIDATION_FAILED("i.xx.fw.411"),
+    PASSWORD_MISMATCH("i.xx.fw.412"),
+    MFA_INVALID("i.xx.fw.413"),
+    MFA_REQUIRED("i.xx.fw.414"),
+    ROLE_NOT_FOUND("i.xx.fw.415"),
+    COURIER_PROFILE_NOT_FOUND("i.xx.fw.416"),
+    MERCHANT_PROFILE_NOT_FOUND("i.xx.fw.417"),
+
+    // 5xx Server Error Codes
+    INTERNAL_SERVER_ERROR("i.xx.fw.500");
+
+    private final String code;
+}
+```
+
+### Standard Response Format (`ApiResponse<T>`)
+```json
+{
+  "success": true,
+  "code": "i.xx.fw.200",
+  "message": "Success!",
+  "data": { ... },
+  "details": [],
+  "timestamp": "2026-08-25T10:15:00"
+}
+```
+
+---
+
 ## 🎯 Key Design Patterns & Engineering Highlights
 
 ### 1. 🔄 Saga Pattern (Orchestration with Compensation)
-- **Problem**: In microservices, each service has its own database (Database-per-Service). Traditional 2PC (Two-Phase Commit) causes heavy database locking and poor scalability.
-- **Solution**: The **Saga Pattern** breaks down distributed transactions into a sequence of local transactions:
+- The **Saga Pattern** manages distributed workflows across microservices:
   1. **Step 1 (Order Service)**: Creates order in `PENDING` state and publishes `FleetPickupCommand` via Kafka.
   2. **Step 2 (Pickup Fleet Service)**: Locates and reserves the nearest courier driver. If no drivers are available, emits `FleetPickupResultEvent(success=false)`.
-  3. **Step 3 (Payment Service)**: Reserves customer funds / validates COD amount.
-  4. **Compensating Transactions (Rollback)**: If Step 3 or Step 2 fails, the Orchestrator executes backward rollback commands: releases the reserved driver, marks order as `CANCELLED`, and emits cancellation alerts.
+  3. **Step 3 (Payment Service)**: Reserves customer funds or validates COD amount.
+  4. **Compensating Transactions (Rollback)**: If any step fails, the Orchestrator executes backward rollback commands: releases the reserved driver, marks the order as `CANCELLED`, and emits alert notifications.
 
 ### 2. 📬 Transactional Outbox Pattern
 - Guarantees **At-Least-Once Delivery** to Kafka.
@@ -61,11 +160,7 @@ graph TD
 - **Automatic TTL**: 7-day TTL for tracking snapshots, 24-hour TTL for driver dispatch states.
 - **Redisson Distributed Locks**: Prevents race conditions during concurrent order status transitions.
 
-### 4. 🔐 Zero-Trust Resource Server Security (JWT)
-- Centralized IAM service (`user-auth-service`) signs HMAC-SHA256 JWT tokens.
-- Every downstream service acts as an independent **Resource Server** using custom `JwtAuthenticationFilter` and stateless `SecurityFilterChain`.
-
-### 5. 🧩 Gang of Four (GoF) Design Patterns & SOLID Principles
+### 4. 🧩 GoF Design Patterns & SOLID Principles
 
 ```
                                   [ Client / OrderService ]
@@ -87,73 +182,19 @@ graph TD
  (24-48h Road Van)    (4-8h Priority Air)           (Pallet / Tailgate)     (Temp-Controlled)
 ```
 
-#### A. 🎯 SOLID Principles in Action
-1. **S - Single Responsibility Principle (SRP)**:
-   - `PricingContext`: Only encapsulates calculation input parameters.
-   - Each Strategy (e.g. `ExpressShippingPricingStrategy`): Only handles priority formula math.
-   - `PricingCalculationService`: Coordinates request flow and maps DTOs.
-2. **O - Open/Closed Principle (OCP)**:
-   - To add a new tier like `DroneDeliveryPricingStrategy` or `InternationalPricingStrategy`, you only implement `ShippingPricingStrategy`.
-   - `PricingStrategyFactory` auto-registers all beans implementing `ShippingPricingStrategy` without modifying existing classes.
-3. **L - Liskov Substitution Principle (LSP)**:
-   - Any `ShippingPricingStrategy` implementation can replace another without altering caller correctness.
-4. **I - Interface Segregation Principle (ISP)**:
-   - `ShippingPricingStrategy` and `NotificationChannelStrategy` expose strictly necessary methods without bloat.
-5. **D - Dependency Inversion Principle (DIP)**:
-   - High-level services (`PricingCalculationService`, `NotificationDispatcherService`) depend on abstract strategy interfaces, injected via Spring DI and Factories.
-
-#### B. 🏭 Factory Pattern
-- **`PricingStrategyFactory`** (`order-service`): Resolves the appropriate pricing strategy by `DeliveryType` or dynamically evaluates shipment weight/flags.
-- **`NotificationStrategyFactory`** (`notification-service`): Resolves the multi-channel notification sender (`SMS`, `EMAIL`, `ZALO_ZNS`, `PUSH`).
-
-#### C. 👑 Singleton Pattern
-- **`LogisticsConfigRegistry`** (`order-service`): Implements the **Bill Pugh Singleton** (Initialization-on-Demand Holder Idiom) ensuring 100% thread-safe, lazy-initialized global access to system fee parameters, dynamic fuel multipliers, and region metadata without synchronization bottlenecks.
-
-#### D. ♟️ Strategy Pattern
-- **Dynamic Logistics Pricing**:
-  - `StandardShippingPricingStrategy`: Standard road courier rate ($25,000 VND base + distance + weight tiers).
-  - `ExpressShippingPricingStrategy`: Same-day 4-8 hour priority with expedited transit multiplier.
-  - `HeavyFreightPricingStrategy`: Bulk cargo with tailgate truck & forklift handling surcharges.
-  - `ColdChainPricingStrategy`: Refrigerated container thermal management & dry-ice surcharge.
-- **Multi-Channel Notification Dispatcher**:
-  - `SmsNotificationStrategy`, `EmailNotificationStrategy`, `ZaloZnsNotificationStrategy`, `PushNotificationStrategy`.
-
-### 6. 🛡️ Global Exception Handling & Enterprise Error Contract
-
-All microservices implement centralized exception handling via `@RestControllerAdvice` and standard `ApiResponse<T>` / `GenericResponse<T>` JSON wrappers:
-
-```json
-{
-  "success": false,
-  "code": "VALIDATION_FAILED",
-  "message": "Request payload validation failed",
-  "data": null,
-  "details": [
-    "Field 'recipientAddress': must not be blank",
-    "Field 'totalWeightKg': must be greater than 0"
-  ],
-  "timestamp": "2026-08-23T21:30:00"
-}
-```
-
-#### Exception Hierarchy & Mapping:
-- **`ResourceNotFoundException` (404 NOT FOUND)**: Thrown when an order, user profile, tracking parcel, or driver cannot be located.
-- **`MethodArgumentNotValidException` (400 BAD REQUEST)**: Catches DTO `@Valid` constraints (`@NotNull`, `@NotBlank`, `@Min`) and extracts field-level details.
-- **`InvalidCredentialsException` / `AccountInactiveException` (401 / 403)**: Thrown on authentication failures or suspended accounts.
-- **`DuplicateUserException` / `DuplicateResourceException` (409 CONFLICT)**: Handles duplicate usernames, emails, or unique constraint violations.
-- **`InvalidStatusTransitionException` (400 BAD REQUEST)**: Guards against illegal state machine transitions on shipments.
-- **`DriverUnavailableException` (409 CONFLICT)**: Thrown during fleet assignment when no drivers meet geographic/capacity criteria.
-- **`Exception` (500 INTERNAL SERVER ERROR)**: Catch-all fallback preventing stack trace leaks to external clients.
+- **Strategy Pattern**: Pluggable pricing algorithms (`StandardShippingPricingStrategy`, `ExpressShippingPricingStrategy`, `HeavyFreightPricingStrategy`, `ColdChainPricingStrategy`).
+- **Factory Pattern**: Dynamic strategy lookups via `PricingStrategyFactory` and `NotificationStrategyFactory`.
+- **Singleton Pattern**: `LogisticsConfigRegistry` implemented with Bill Pugh Initialization-on-Demand Holder Idiom for zero-overhead, thread-safe configuration caching.
 
 ---
 
-## 📦 Microservices Port & Resource Allocation
+## 📦 Microservices Port Allocation
 
 | Microservice | Internal Port | External Port | Database | Primary Responsibility |
 | :--- | :--- | :--- | :--- | :--- |
 | **`api-gateway`** | `8000` | `8000` | — | Central Ingress, Routing & Rate Limiting |
 | **`service-registry`** | `8761` | `8761` | — | Netflix Eureka Service Discovery |
-| **`user-auth-service`** | `8086` | `8086` | `auth_db` | JWT Authentication, BCrypt & RBAC |
+| **`user-auth-service`** | `8080 / 8086` | `8080 / 8086` | `auth_db` | JWT Authentication, BCrypt, 2FA & Dynamic RBAC |
 | **`order-service`** | `8081` | `8081` | `orders_db` | Order Lifecycle, Dynamic Pricing & Saga |
 | **`pickup-fleet-service`** | `8082` | `8082` | `fleet_db` | Courier Fleet & Dispatching |
 | **`fulfillment-service`** | `8083` | `8083` | `fulfillment_db` | Hub Sorting, Cross-Docking & Proof-of-Delivery |
@@ -173,18 +214,17 @@ All microservices implement centralized exception handling via `@RestControllerA
 - **Docker Desktop & Docker Compose**
 
 ### Step 1: Start Infrastructure Containers
-Start Kafka, Zookeeper, Redis, and PostgreSQL with a single command:
 ```bash
 docker-compose up -d postgres-db redis zookeeper kafka
 ```
 
-### Step 2: Build the Parent Maven Project
+### Step 2: Build All Microservices
 ```bash
 cd microservices
 mvn clean install -DskipTests
 ```
 
-### Step 3: Run Services in Sequence (via IDE or Terminal)
+### Step 3: Start Services in Recommended Sequence
 1. `service-registry` (`ServiceRegistryApplication`)
 2. `api-gateway` (`ApiGatewayApplication`)
 3. `user-auth-service` (`UserAuthServiceApplication`)
@@ -196,8 +236,9 @@ mvn clean install -DskipTests
 
 ---
 
-## 🧪 Testing with Postman
-1. Import `postman_collection.json` and `postman_environment.json` into Postman.
-2. Run **IAM Authentication > Login Customer / Driver / Admin**. The collection automatically stores the Bearer JWT token in your environment.
-3. Execute **Order Service > Create Express Delivery Order** and observe the real-time Saga execution across console logs.
-4. Run **Tracking Service > Query Public Timeline by Tracking Number** to inspect the live status!
+## 🧪 Postman API Testing
+
+1. Import `user-auth-service.postman_collection.json` (or `postman_collection.json`) into Postman.
+2. Run **`1.1. Login as Admin`** (password: `Test123456@`). The access token is automatically saved into collection variables (`{{jwt_token}}`).
+3. Test **`1.7. Validate Token`** or **`2.1. Get Current User (/me)`** to verify the bearer token, role claims, and permissions.
+4. Test downstream order placement and tracking endpoints via the API Gateway (`http://localhost:8000`).
