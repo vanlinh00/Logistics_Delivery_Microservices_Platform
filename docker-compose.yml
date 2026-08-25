@@ -216,10 +216,27 @@ services:
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-      - POSTGRES_MULTIPLE_DATABASES=orders_db,fleet_db,fulfillment_db,tracking_db,notification_db,auth_db,keycloak_db
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ./infrastructure/postgres/init-multi-db.sh:/docker-entrypoint-initdb.d/init-multi-db.sh
+    command:
+      - "bash"
+      - "-c"
+      - |
+        docker-entrypoint.sh postgres &
+        until pg_isready -U postgres; do sleep 1; done
+        psql -U postgres -c "CREATE DATABASE orders_db;" || true
+        psql -U postgres -c "CREATE DATABASE fleet_db;" || true
+        psql -U postgres -c "CREATE DATABASE fulfillment_db;" || true
+        psql -U postgres -c "CREATE DATABASE tracking_db;" || true
+        psql -U postgres -c "CREATE DATABASE notification_db;" || true
+        psql -U postgres -c "CREATE DATABASE auth_db;" || true
+        psql -U postgres -c "CREATE DATABASE keycloak_db;" || true
+        wait
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     networks:
       - logistics-network
 
@@ -241,7 +258,8 @@ services:
     volumes:
       - ./infrastructure/keycloak/logistics-realm.json:/opt/keycloak/data/import/logistics-realm.json:ro
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - logistics-network
 

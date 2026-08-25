@@ -72,17 +72,18 @@
       "name": "1. Authentication & IAM Service (:8080 or Gateway :8000)",
       "item": [
         {
-          "name": "1.1. Login (Obtain JWT Token)",
+          "name": "1.1. Login as Admin (Obtain JWT Token)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
                   "if (pm.response.code === 200) {",
-                  "    var jsonData = pm.response.json();",
-                  "    if (jsonData.accessToken) {",
-                  "        pm.collectionVariables.set('jwt_token', jsonData.accessToken);",
-                  "        console.log('JWT Token saved:', jsonData.accessToken);",
+                  "    var res = pm.response.json();",
+                  "    var data = res.data || res;",
+                  "    if (data.accessToken) {",
+                  "        pm.collectionVariables.set('jwt_token', data.accessToken);",
+                  "        console.log('JWT Token saved:', data.accessToken);",
                   "    }",
                   "}"
                 ],
@@ -107,7 +108,7 @@
               "host": ["{{gateway_url}}"],
               "path": ["api", "v1", "auth", "login"]
             },
-            "description": "Authenticates customer, courier, or operator and returns JWT access and refresh token."
+            "description": "Authenticates user via Keycloak OIDC / Local DB and returns JWT access & refresh token."
           }
         },
         {
@@ -122,14 +123,102 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"username\": \"linh_customer\",\n  \"email\": \"linh.logistics@example.com\",\n  \"fullName\": \"Nguyễn Văn Linh\",\n  \"phone\": \"0988123456\",\n  \"role\": \"ROLE_CUSTOMER\"\n}"
+              "raw": "{\n  \"username\": \"linh_customer\",\n  \"email\": \"linh.logistics@example.com\",\n  \"password\": \"linh123456\",\n  \"fullName\": \"Nguyễn Văn Linh\",\n  \"phone\": \"0988123456\",\n  \"role\": \"ROLE_CUSTOMER\"\n}"
             },
             "url": {
               "raw": "{{gateway_url}}/api/v1/auth/register",
               "host": ["{{gateway_url}}"],
               "path": ["api", "v1", "auth", "register"]
             },
-            "description": "Registers a new customer, courier driver or hub operator account."
+            "description": "Registers a new customer, courier driver or merchant account."
+          }
+        },
+        {
+          "name": "1.3. Get Current User Context (/me)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/auth/me",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "auth", "me"]
+            },
+            "description": "Returns current authenticated principal user, roles, and profiles."
+          }
+        },
+        {
+          "name": "1.4. Courier KYC Submission",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"citizenId\": \"079095012345\",\n  \"vehicleType\": \"MOTORBIKE\",\n  \"licensePlate\": \"59-X1 888.99\",\n  \"assignedHubId\": \"HUB-TAN-BINH-01\",\n  \"maxCapacityKg\": 35.0\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/users/couriers/kyc",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "users", "couriers", "kyc"]
+            },
+            "description": "Submits driver KYC and vehicle profile."
+          }
+        },
+        {
+          "name": "1.5. Merchant Profile Update",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shopName\": \"Long Fashion Store\",\n  \"taxCode\": \"0315998877\",\n  \"warehouseAddress\": \"123 Lê Lợi, P. Bến Thành, Q.1, TP.HCM\",\n  \"bankAccount\": \"19034567890123\",\n  \"bankName\": \"Techcombank\",\n  \"codTier\": \"VIP_FAST_PAYOUT\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/users/merchants/profile",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "users", "merchants", "profile"]
+            },
+            "description": "Saves merchant shop information, bank account, and warehouse pickup address."
+          }
+        },
+        {
+          "name": "1.6. Logout (Blacklist in Redis)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/auth/logout",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "auth", "logout"]
+            },
+            "description": "Invalidates JWT access token in Redis Blacklist and closes Keycloak session."
           }
         }
       ]

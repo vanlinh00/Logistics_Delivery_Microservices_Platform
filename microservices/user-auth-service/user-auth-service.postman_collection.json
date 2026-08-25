@@ -1,0 +1,659 @@
+{
+  "info": {
+    "_postman_id": "auth-service-postman-collection-v1",
+    "name": "User & Authentication IAM Service (Port 8080)",
+    "description": "Enterprise Postman collection for User Authentication, Keycloak OIDC Token Exchange, Redis Blacklist, MFA/TOTP, Courier KYC, and Merchant Profiles in Logistics Microservices Platform.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "auth_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "gateway_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "jwt_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refresh_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sample_hub_id",
+      "value": "HUB-TAN-BINH-01",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Authentication & IAM Flow",
+      "item": [
+        {
+          "name": "1.1. Login as Admin (Seed Credentials)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var res = pm.response.json();",
+                  "    var data = res.data || res;",
+                  "    if (data.accessToken) {",
+                  "        pm.collectionVariables.set('jwt_token', data.accessToken);",
+                  "        pm.collectionVariables.set('refresh_token', data.refreshToken);",
+                  "        pm.collectionVariables.set('user_id', data.userId);",
+                  "        console.log('✅ JWT Token Saved:', data.accessToken);",
+                  "        console.log('✅ User ID:', data.userId);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usernameOrEmail\": \"admin\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{auth_url}}/api/v1/auth/login",
+              "host": ["{{auth_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Authenticates the system administrator and returns JWT token pair (Access & Refresh)."
+          }
+        },
+        {
+          "name": "1.2. Login as Courier (Bưu tá Hùng)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var res = pm.response.json();",
+                  "    var data = res.data || res;",
+                  "    if (data.accessToken) {",
+                  "        pm.collectionVariables.set('jwt_token', data.accessToken);",
+                  "        pm.collectionVariables.set('refresh_token', data.refreshToken);",
+                  "        pm.collectionVariables.set('user_id', data.userId);",
+                  "        console.log('✅ Courier Token Saved');",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usernameOrEmail\": \"courier_hung\",\n  \"password\": \"courier123\"\n}"
+            },
+            "url": {
+              "raw": "{{auth_url}}/api/v1/auth/login",
+              "host": ["{{auth_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Login as Courier with ROLE_COURIER claims."
+          }
+        },
+        {
+          "name": "1.3. Login as Merchant (Chủ Shop Long)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var res = pm.response.json();",
+                  "    var data = res.data || res;",
+                  "    if (data.accessToken) {",
+                  "        pm.collectionVariables.set('jwt_token', data.accessToken);",
+                  "        pm.collectionVariables.set('refresh_token', data.refreshToken);",
+                  "        pm.collectionVariables.set('user_id', data.userId);",
+                  "        console.log('✅ Merchant Token Saved');",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usernameOrEmail\": \"merchant_long\",\n  \"password\": \"merchant123\"\n}"
+            },
+            "url": {
+              "raw": "{{auth_url}}/api/v1/auth/login",
+              "host": ["{{auth_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Login as Merchant with ROLE_MERCHANT claims."
+          }
+        },
+        {
+          "name": "1.4. Register New Customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201 || pm.response.code === 200) {",
+                  "    var res = pm.response.json();",
+                  "    var data = res.data || res;",
+                  "    if (data.accessToken) {",
+                  "        pm.collectionVariables.set('jwt_token', data.accessToken);",
+                  "        pm.collectionVariables.set('refresh_token', data.refreshToken);",
+                  "        pm.collectionVariables.set('user_id', data.userId);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"customer_an\",\n  \"email\": \"an.nguyen@example.com\",\n  \"password\": \"an123456\",\n  \"fullName\": \"Nguyễn Văn An\",\n  \"phone\": \"0987112233\",\n  \"role\": \"ROLE_CUSTOMER\"\n}"
+            },
+            "url": {
+              "raw": "{{auth_url}}/api/v1/auth/register",
+              "host": ["{{auth_url}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "description": "Registers a new customer account with auto-profile generation."
+          }
+        },
+        {
+          "name": "1.5. Refresh Token (Rotate Session)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var res = pm.response.json();",
+                  "    var data = res.data || res;",
+                  "    if (data.accessToken) {",
+                  "        pm.collectionVariables.set('jwt_token', data.accessToken);",
+                  "        pm.collectionVariables.set('refresh_token', data.refreshToken);",
+                  "        console.log('✅ Token Rotated Successfully');",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{auth_url}}/api/v1/auth/refresh",
+              "host": ["{{auth_url}}"],
+              "path": ["api", "v1", "auth", "refresh"]
+            },
+            "description": "Refreshes the expired JWT access token using the valid refresh token."
+          }
+        },
+        {
+          "name": "1.6. Validate JWT Token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{auth_url}}/api/v1/auth/validate?token={{jwt_token}}",
+              "host": ["{{auth_url}}"],
+              "path": ["api", "v1", "auth", "validate"],
+              "query": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}"
+                }
+              ]
+            },
+            "description": "Gateway/Internal validation checking token validity, claims, and Redis revocation list."
+          }
+        },
+        {
+          "name": "1.7. Get Current User Profile (/me)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{auth_url}}/api/v1/auth/me",
+              "host": ["{{auth_url}}"],
+              "path": ["api", "v1", "auth", "me"]
+            },
+            "description": "Returns full user profile, linked CourierProfile or MerchantProfile, and permissions."
+          }
+        },
+        {
+          "name": "1.8. Setup 2FA / TOTP MFA",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{auth_url}}/api/v1/auth/mfa/setup",
+              "host": ["{{auth_url}}"],
+              "path": ["api", "v1", "auth", "mfa", "setup"]
+            },
+            "description": "Generates TOTP secret and Google Authenticator QR Code URI for MFA setup."
+          }
+        },
+        {
+          "name": "1.9. Verify 2FA / TOTP Code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{auth_url}}/api/v1/auth/mfa/verify",
+              "host": ["{{auth_url}}"],
+              "path": ["api", "v1", "auth", "mfa", "verify"]
+            },
+            "description": "Verifies 6-digit TOTP code and enables MFA on the account."
+          }
+        },
+        {
+          "name": "1.10. Logout (Blacklist in Redis)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{auth_url}}/api/v1/auth/logout",
+              "host": ["{{auth_url}}"],
+              "path": ["api", "v1", "auth", "logout"]
+            },
+            "description": "Invalidates JWT access token in Redis Blacklist and revokes Keycloak session."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. User Management & Administration",
+      "item": [
+        {
+          "name": "2.1. Get User Entity by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{auth_url}}/api/v1/users/{{user_id}}",
+              "host": ["{{auth_url}}"],
+              "path": ["api", "v1", "users", "{{user_id}}"]
+            },
+            "description": "Retrieves user record by UUID (Admin or Owner)."
+          }
+        },
+        {
+          "name": "2.2. Change Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"oldPassword\": \"admin123\",\n  \"newPassword\": \"Admin@2026!Secure\"\n}"
+            },
+            "url": {
+              "raw": "{{auth_url}}/api/v1/users/password/change",
+              "host": ["{{auth_url}}"],
+              "path": ["api", "v1", "users", "password", "change"]
+            },
+            "description": "Changes authenticated user password with BCrypt hashing."
+          }
+        },
+        {
+          "name": "2.3. Admin - List All Users (Paginated)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{auth_url}}/api/v1/users/admin/all?page=0&size=10&sort=createdAt,desc",
+              "host": ["{{auth_url}}"],
+              "path": ["api", "v1", "users", "admin", "all"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                },
+                {
+                  "key": "sort",
+                  "value": "createdAt,desc"
+                }
+              ]
+            },
+            "description": "Returns paginated list of all users across the platform (Admin only)."
+          }
+        },
+        {
+          "name": "2.4. Admin - Toggle User Status (Activate/Deactivate)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{auth_url}}/api/v1/users/admin/{{user_id}}/status?active=true",
+              "host": ["{{auth_url}}"],
+              "path": ["api", "v1", "users", "admin", "{{user_id}}", "status"],
+              "query": [
+                {
+                  "key": "active",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "Enables or disables user account login capabilities."
+          }
+        },
+        {
+          "name": "2.5. Get IAM Platform Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{auth_url}}/api/v1/users/stats",
+              "host": ["{{auth_url}}"],
+              "path": ["api", "v1", "users", "stats"]
+            },
+            "description": "Returns counts of total users, active users, online couriers, merchants, and customers."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Courier Fleet & KYC Profile",
+      "item": [
+        {
+          "name": "3.1. Submit Courier KYC",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"citizenId\": \"079095012345\",\n  \"vehicleType\": \"MOTORBIKE\",\n  \"licensePlate\": \"59-X1 999.88\",\n  \"assignedHubId\": \"HUB-TAN-BINH-01\",\n  \"maxCapacityKg\": 35.0\n}"
+            },
+            "url": {
+              "raw": "{{auth_url}}/api/v1/users/couriers/kyc",
+              "host": ["{{auth_url}}"],
+              "path": ["api", "v1", "users", "couriers", "kyc"]
+            },
+            "description": "Updates or submits driver citizen identification, vehicle type, license plate, and assigned hub."
+          }
+        },
+        {
+          "name": "3.2. Toggle Courier Shift (Online / Offline)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isOnline\": true\n}"
+            },
+            "url": {
+              "raw": "{{auth_url}}/api/v1/users/couriers/shift",
+              "host": ["{{auth_url}}"],
+              "path": ["api", "v1", "users", "couriers", "shift"]
+            },
+            "description": "Toggles courier availability for automated dispatch."
+          }
+        },
+        {
+          "name": "3.3. Get Courier Profile by User ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{auth_url}}/api/v1/users/couriers/profile/{{user_id}}",
+              "host": ["{{auth_url}}"],
+              "path": ["api", "v1", "users", "couriers", "profile", "{{user_id}}"]
+            },
+            "description": "Retrieves courier vehicle, KYC status, and ratings."
+          }
+        },
+        {
+          "name": "3.4. Get Online Couriers by Hub ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{auth_url}}/api/v1/users/couriers/hub/{{sample_hub_id}}/active",
+              "host": ["{{auth_url}}"],
+              "path": ["api", "v1", "users", "couriers", "hub", "{{sample_hub_id}}", "active"]
+            },
+            "description": "Returns list of active, online couriers stationed at a specific logistics hub."
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Merchant Profile & Warehouse",
+      "item": [
+        {
+          "name": "4.1. Save Merchant Business Profile",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shopName\": \"Hải Nam Tech & Electronics\",\n  \"taxCode\": \"0316889900\",\n  \"warehouseAddress\": \"456 Nguyễn Thị Minh Khai, Phường 5, Quận 3, TP.HCM\",\n  \"bankAccount\": \"19039988776655\",\n  \"bankName\": \"MB Bank\",\n  \"codTier\": \"VIP_FAST_PAYOUT\"\n}"
+            },
+            "url": {
+              "raw": "{{auth_url}}/api/v1/users/merchants/profile",
+              "host": ["{{auth_url}}"],
+              "path": ["api", "v1", "users", "merchants", "profile"]
+            },
+            "description": "Creates or updates merchant shop info, warehouse pickup address, and COD payout tier."
+          }
+        },
+        {
+          "name": "4.2. Get Merchant Profile by User ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{auth_url}}/api/v1/users/merchants/profile/{{user_id}}",
+              "host": ["{{auth_url}}"],
+              "path": ["api", "v1", "users", "merchants", "profile", "{{user_id}}"]
+            },
+            "description": "Retrieves merchant shop configuration and bank settlement details."
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Actuator & Health Checks",
+      "item": [
+        {
+          "name": "5.1. Service Health (Liveness & Readiness)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{auth_url}}/actuator/health",
+              "host": ["{{auth_url}}"],
+              "path": ["actuator", "health"]
+            },
+            "description": "Checks health of DB, Redis, and Eureka registry connection."
+          }
+        },
+        {
+          "name": "5.2. Service Info & Git Build",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{auth_url}}/actuator/info",
+              "host": ["{{auth_url}}"],
+              "path": ["actuator", "info"]
+            },
+            "description": "Returns build version, microservice name, and environment properties."
+          }
+        }
+      ]
+    }
+  ]
+}
