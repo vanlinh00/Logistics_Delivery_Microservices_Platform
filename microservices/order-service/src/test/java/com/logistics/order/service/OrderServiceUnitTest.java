@@ -133,7 +133,13 @@ class OrderServiceUnitTest {
                             .build());
 
             when(pricingService.calculatePrice(any())).thenReturn(samplePriceResponse);
-            when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+            when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> {
+                Order ord = invocation.getArgument(0);
+                if (ord.getId() == null) {
+                    ord.setId(UUID.randomUUID());
+                }
+                return ord;
+            });
             when(objectMapper.writeValueAsString(any())).thenReturn("{\"orderId\":\"test\"}");
 
             // Act
@@ -210,6 +216,7 @@ class OrderServiceUnitTest {
 
             when(redissonClient.getLock("lock:order:" + orderId)).thenReturn(distributedLock);
             when(distributedLock.tryLock(anyLong(), anyLong(), any(TimeUnit.class))).thenReturn(true);
+            when(distributedLock.isHeldByCurrentThread()).thenReturn(true);
             when(orderRepository.findById(orderId)).thenReturn(Optional.of(existingOrder));
             when(orderRepository.save(any(Order.class))).thenAnswer(i -> i.getArgument(0));
 
@@ -232,6 +239,7 @@ class OrderServiceUnitTest {
             UUID orderId = UUID.randomUUID();
             when(redissonClient.getLock(anyString())).thenReturn(distributedLock);
             when(distributedLock.tryLock(anyLong(), anyLong(), any(TimeUnit.class))).thenReturn(true);
+            when(distributedLock.isHeldByCurrentThread()).thenReturn(true);
             when(orderRepository.findById(orderId)).thenReturn(Optional.empty());
 
             OrderDTOs.UpdateOrderStatusRequest updateReq = OrderDTOs.UpdateOrderStatusRequest.builder()

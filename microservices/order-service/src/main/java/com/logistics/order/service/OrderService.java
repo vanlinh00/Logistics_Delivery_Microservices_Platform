@@ -106,7 +106,7 @@ public class OrderService {
         try {
             OrderOutbox outbox = OrderOutbox.builder()
                     .aggregateType("ORDER")
-                    .aggregateId(savedOrder.getId().toString())
+                    .aggregateId(savedOrder.getId() != null ? savedOrder.getId().toString() : savedOrder.getTrackingNumber())
                     .eventType("ORDER_CREATED")
                     .payload(objectMapper.writeValueAsString(savedOrder))
                     .processed(false)
@@ -158,21 +158,23 @@ public class OrderService {
             Order updated = orderRepository.save(order);
 
             // Write status update to Outbox
-            OrderOutbox outbox = OrderOutbox.builder()
-                    .aggregateType("ORDER")
-                    .aggregateId(updated.getId().toString())
-                    .eventType("ORDER_STATUS_UPDATED")
-                    .payload(objectMapper.writeValueAsString(updated))
-                    .processed(false)
-                    .build();
-            outboxRepository.save(outbox);
+            try {
+                OrderOutbox outbox = OrderOutbox.builder()
+                        .aggregateType("ORDER")
+                        .aggregateId(updated.getId() != null ? updated.getId().toString() : orderId.toString())
+                        .eventType("ORDER_STATUS_UPDATED")
+                        .payload(objectMapper.writeValueAsString(updated))
+                        .processed(false)
+                        .build();
+                outboxRepository.save(outbox);
+            } catch (Exception e) {
+                log.error("Failed to serialize order update outbox", e);
+            }
 
             return updated;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new RuntimeException("Cập nhật đơn hàng bị gián đoạn", e);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
         } finally {
             if (lock.isHeldByCurrentThread()) {
                 lock.unlock();

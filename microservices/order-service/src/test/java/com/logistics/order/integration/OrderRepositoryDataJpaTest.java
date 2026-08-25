@@ -48,6 +48,7 @@ class OrderRepositoryDataJpaTest {
                 .recipientPhone("0987654321")
                 .recipientAddress("TP. Hồ Chí Minh")
                 .totalWeightKg(1.5)
+                .baseShippingFee(BigDecimal.valueOf(30000))
                 .totalAmount(BigDecimal.valueOf(35000))
                 .build();
     }
