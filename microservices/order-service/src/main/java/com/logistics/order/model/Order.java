@@ -59,8 +59,10 @@ public class Order {
     private Double recipientLongitude;
 
     // Dimensions & Weight
-    @Column(nullable = false)
+    @Column(name = "total_weight_kg", nullable = false)
     private Double totalWeightKg;
+
+    @Column(name = "total_volume_m3")
     private Double totalVolumeM3;
 
     // Pricing & Fees
