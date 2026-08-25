@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- 1. Load Permissions Data -->
+    <changeSet author="PhuocVD" id="permissions-data">
+        <loadData
+                encoding="UTF-8"
+                file="db/data/permissions.csv"
+                separator=","
+                quotchar="&quot;"
+                tableName="permissions">
+            <column name="id" type="UUID"/>
+            <column name="code" type="STRING"/>
+            <column name="name" type="STRING"/>
+            <column name="category" type="STRING"/>
+            <column name="description" type="STRING"/>
+        </loadData>
+    </changeSet>
+
+    <!-- 2. Load Roles Data -->
+    <changeSet author="PhuocVD" id="roles-data">
+        <loadData
+                encoding="UTF-8"
+                file="db/data/roles.csv"
+                separator=","
+                quotchar="&quot;"
+                tableName="roles">
+            <column name="id" type="UUID"/>
+            <column name="code" type="STRING"/>
+            <column name="name" type="STRING"/>
+            <column name="description" type="STRING"/>
+        </loadData>
+    </changeSet>
+
+    <!-- 3. Load Role-Permissions Mapping Data -->
+    <changeSet author="PhuocVD" id="role-permissions-data">
+        <loadData
+                encoding="UTF-8"
+                file="db/data/role_permissions.csv"
+                separator=","
+                quotchar="&quot;"
+                tableName="role_permissions">
+            <column name="role_id" type="UUID"/>
+            <column name="permission_id" type="UUID"/>
+        </loadData>
+    </changeSet>
+
+    <!-- 4. Load Users Data -->
+    <changeSet author="PhuocVD" id="users-data">
+        <loadData
+                encoding="UTF-8"
+                file="db/data/users.csv"
+                separator=","
+                quotchar="&quot;"
+                tableName="users">
+            <column name="id" type="UUID"/>
+            <column name="username" type="STRING"/>
+            <column name="email" type="STRING"/>
+            <column name="password_hash" type="STRING"/>
+            <column name="full_name" type="STRING"/>
+            <column name="phone" type="STRING"/>
+            <column name="role" type="STRING"/>
+            <column name="active" type="BOOLEAN"/>
+            <column name="mfa_enabled" type="BOOLEAN"/>
+        </loadData>
+    </changeSet>
+
+</databaseChangeLog>

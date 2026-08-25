@@ -107,6 +107,7 @@ public class AuthDTOs {
         private String email;
         private Boolean active;
         private List<String> roles;
+        private List<String> permissions;
     }
 
     @Getter

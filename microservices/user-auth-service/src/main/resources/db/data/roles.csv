@@ -1,0 +1,6 @@
+"id","code","name","description"
+"22222222-2222-2222-2222-000000000001","ROLE_ADMIN","System Administrator","Full platform administrator"
+"22222222-2222-2222-2222-000000000002","ROLE_COURIER","Courier Driver","Delivery and logistics courier partner"
+"22222222-2222-2222-2222-000000000003","ROLE_MERCHANT","Merchant Partner","Store and commerce merchant account"
+"22222222-2222-2222-2222-000000000004","ROLE_DISPATCHER","Dispatch Operator","Regional dispatch coordinator"
+"22222222-2222-2222-2222-000000000005","ROLE_CUSTOMER","End Customer","Retail recipient and parcel sender"

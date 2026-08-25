@@ -8,10 +8,13 @@ import com.logistics.auth.exception.ResourceNotFoundException;
 import com.logistics.auth.model.AuthAuditLog;
 import com.logistics.auth.model.CourierProfile;
 import com.logistics.auth.model.MerchantProfile;
+import com.logistics.auth.model.Permission;
+import com.logistics.auth.model.Role;
 import com.logistics.auth.model.User;
 import com.logistics.auth.repository.AuthAuditLogRepository;
 import com.logistics.auth.repository.CourierProfileRepository;
 import com.logistics.auth.repository.MerchantProfileRepository;
+import com.logistics.auth.repository.RoleRepository;
 import com.logistics.auth.repository.UserRepository;
 import com.logistics.auth.security.JwtProvider;
 import com.logistics.auth.security.KeycloakClient;
@@ -33,6 +36,7 @@ import java.util.*;
 public class AuthService {
 
     private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
     private final CourierProfileRepository courierProfileRepository;
     private final MerchantProfileRepository merchantProfileRepository;
     private final AuthAuditLogRepository auditLogRepository;
@@ -315,11 +319,14 @@ public class AuthService {
             }
         }
 
+        List<String> permissions = getPermissionsForRoleName(role);
+
         return TokenValidationResponse.builder()
                 .valid(true)
                 .username(username)
                 .role(role)
                 .roles(roles)
+                .permissions(permissions)
                 .userId(userId)
                 .email(email)
                 .active(true)
@@ -370,7 +377,37 @@ public class AuthService {
         return false;
     }
 
-    private List<String> getPermissionsForRole(User.UserRole role) {
+    public List<String> getPermissionsForRoleName(String roleName) {
+        if (roleName == null || roleName.isBlank()) {
+            return List.of("orders:read:self", "orders:create", "tracking:read");
+        }
+        String standardRole = roleName.startsWith("ROLE_") ? roleName : "ROLE_" + roleName.toUpperCase();
+        try {
+            Optional<Role> roleOpt = roleRepository.findByCodeWithPermissions(standardRole);
+            if (roleOpt.isPresent() && roleOpt.get().getPermissions() != null && !roleOpt.get().getPermissions().isEmpty()) {
+                return roleOpt.get().getPermissions().stream()
+                        .map(Permission::getCode)
+                        .sorted()
+                        .toList();
+            }
+        } catch (Exception e) {
+            log.debug("Fallback to hardcoded permissions for {}: {}", standardRole, e.getMessage());
+        }
+
+        try {
+            User.UserRole enumRole = User.UserRole.valueOf(standardRole);
+            return getFallbackPermissions(enumRole);
+        } catch (Exception e) {
+            return List.of("orders:read:self", "orders:create", "tracking:read");
+        }
+    }
+
+    public List<String> getPermissionsForRole(User.UserRole role) {
+        if (role == null) return List.of();
+        return getPermissionsForRoleName(role.name());
+    }
+
+    private List<String> getFallbackPermissions(User.UserRole role) {
         return switch (role) {
             case ROLE_ADMIN -> List.of(
                     "orders:read", "orders:write", "orders:delete",
