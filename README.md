@@ -2,13 +2,14 @@
 
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.2-brightgreen.svg)](https://spring.io/projects/spring-boot)
 [![Spring Cloud](https://img.shields.io/badge/Spring%20Cloud-2024.0.0-blue.svg)](https://spring.io/projects/spring-cloud)
+[![Keycloak](https://img.shields.io/badge/Keycloak-24.0.2-red.svg)](https://www.keycloak.org/)
+[![Liquibase](https://img.shields.io/badge/Liquibase-4.29.2-blue.svg)](https://www.liquibase.org/)
 [![Apache Kafka](https://img.shields.io/badge/Apache%20Kafka-3.7.0-red.svg)](https://kafka.apache.org/)
 [![Redis](https://img.shields.io/badge/Redis-7.2-red.svg)](https://redis.io/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16.1-blue.svg)](https://www.postgresql.org/)
-[![Liquibase](https://img.shields.io/badge/Liquibase-4.29.2-blue.svg)](https://www.liquibase.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue.svg)](https://www.postgresql.org/)
 [![Architecture](https://img.shields.io/badge/Pattern-Saga%20%2B%20Outbox%20%2B%20RBAC-orange.svg)]()
 
-Production-grade, event-driven Logistics & Parcel Delivery Microservices ecosystem built with **Spring Boot 3.4**, **Apache Kafka**, **Redis Enterprise Caching**, **PostgreSQL**, **Liquibase**, and **Docker**.
+Enterprise-grade, distributed, event-driven Logistics & Parcel Delivery Microservices ecosystem built with **Spring Boot 3.4**, **Keycloak IAM (OpenID Connect / OAuth2)**, **Liquibase Database Migrations**, **Apache Kafka**, **Redis Enterprise Caching**, **PostgreSQL**, and **Docker**.
 
 ---
 
@@ -18,7 +19,8 @@ Production-grade, event-driven Logistics & Parcel Delivery Microservices ecosyst
 graph TD
     Client([Client / Postman / Web / Mobile App]) -->|HTTP REST| Gateway[API Gateway :8000]
     
-    Gateway -->|JWT Validate & RBAC| AuthService[User Auth & IAM Service :8080 / :8086]
+    Gateway -->|OAuth2 / OIDC & Token Introspect| Keycloak[Keycloak IAM Server :8180]
+    Gateway -->|Auth & Dynamic RBAC| AuthService[User Auth & IAM Service :8080]
     Gateway -->|Orders & Dynamic Pricing| OrderService[Order Lifecycle Service :8081]
     Gateway -->|Fleet & Dispatch| FleetService[Pickup & Fleet Service :8082]
     Gateway -->|Fulfillment & POD| FulfillmentService[Hub Fulfillment & POD :8083]
@@ -40,21 +42,61 @@ graph TD
     FulfillmentService --> DB3[(fulfillment_db :5433)]
     TrackingService --> DB4[(tracking_db :5433)]
     AuthService --> DB5[(auth_db :5433)]
+    Keycloak --> DB6[(keycloak_db :5433)]
 ```
 
 ---
 
-## 🔐 User Authentication & Identity Management (`user-auth-service`)
+## 🔑 Identity & Access Management with Keycloak
 
-The `user-auth-service` manages identity, authentication, user profiles, and dynamic permission evaluation.
+The platform integrates **Keycloak 24.0.2** as the centralized Identity and Access Management (IAM) provider, supporting OpenID Connect (OIDC) and OAuth 2.0 protocols.
 
-### Key Capabilities:
-- **Stateless JWT Authentication**: Generates HMAC-SHA256 signed access tokens with custom claims (User ID, Username, Email, Role, Database Permissions).
-- **BCrypt Password Hashing**: Passwords stored as BCrypt salted hashes (`cost factor = 10`).
-- **Dynamic Database-Driven RBAC**: Permissions are resolved dynamically from PostgreSQL join tables (`roles`, `permissions`, `role_permissions`) with no hardcoded fallback logic.
-- **Two-Factor Authentication (2FA / MFA)**: Google Authenticator TOTP time-based one-time password integration.
-- **Redis Token Blacklisting**: Instant token invalidation upon user logout.
-- **Audit Logging**: Asynchronous recording of login attempts, failed credentials, and MFA audits in `auth_audit_logs`.
+### Keycloak Specifications & Endpoints
+- **Keycloak Console URL**: `http://localhost:8180`
+- **Default Master Admin**: `admin` / `admin`
+- **Logistics Realm**: `logistics-realm`
+- **Issuer URI**: `http://localhost:8180/realms/logistics-realm`
+- **JWKS Endpoint**: `http://localhost:8180/realms/logistics-realm/protocol/openid-connect/certs`
+- **Token Endpoint**: `http://localhost:8180/realms/logistics-realm/protocol/openid-connect/token`
+- **Client ID**: `logistics-api-gateway`
+- **Client Secret**: `logistics-gateway-secret-2024-enterprise-jwt`
+- **Realm Auto-Import**: Mounted automatically via Docker volume from `./infrastructure/keycloak/logistics-realm.json`.
+
+### Dual Authentication & Resilience Strategy:
+1. **Keycloak Direct Grant & SSO**: Primary OAuth2 token issuance through Keycloak.
+2. **Hybrid / Fallback Local Auth**: If Keycloak is disabled or during independent testing, `user-auth-service` seamlessly handles local JWT authentication (HMAC-SHA256) with BCrypt password hashing and Redis token blacklisting.
+
+---
+
+## 🗄️ Database Migrations with Liquibase
+
+All relational database schemas and initial data seeding are managed declaratively using **Liquibase**.
+
+### Liquibase Configuration in `application.yml`
+```yaml
+spring:
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.xml
+    enabled: true
+```
+
+### Changelog Structure:
+- **Master Changelog**: `src/main/resources/db/changelog/db.changelog-master.xml`
+- **Schema Changeset (`001-create-schema.xml`)** *(author: `Vanlinh00`)*:
+  - Creates tables with `preConditions` (`onFail="MARK_RAN"`):
+    - `permissions` (id, code, description, module)
+    - `roles` (id, code, name, description)
+    - `role_permissions` (role_id, permission_id join table)
+    - `users` (id, username, email, password_hash, full_name, phone, role, active, mfa_enabled)
+    - `courier_profiles` (id, user_id, citizen_id, vehicle_type, license_plate, max_capacity_kg)
+    - `merchant_profiles` (id, user_id, shop_name, tax_code, warehouse_address, bank_account)
+    - `auth_audit_logs` (id, username, event_type, details, ip_address, created_at)
+- **Data Load Changeset (`002-load-initial-data.xml`)** *(author: `Vanlinh00`)*:
+  - Seeds initial records via `<loadData>` from CSV files:
+    - `db/data/permissions.csv`
+    - `db/data/roles.csv`
+    - `db/data/role_permissions.csv`
+    - `db/data/users.csv`
 
 ---
 
@@ -70,22 +112,6 @@ All pre-seeded test accounts use the standardized password: **`Test123456@`**
 | **`dispatcher01`**| `dispatcher1@logistics.com`| `ROLE_DISPATCHER`| `Test123456@` | Fleet operations (`orders:assign`, `fleet:route:optimize`, `fleet:read`) |
 | **`user001`** | `test1@gmail.com` | `ROLE_CUSTOMER` | `Test123456@` | Customer portal (`orders:read:self`, `orders:create`, `tracking:read`) |
 | **`user002`** | `test2@gmail.com` | `ROLE_CUSTOMER` | `Test123456@` | Customer portal (`orders:read:self`, `orders:create`, `tracking:read`) |
-
----
-
-## 🗄️ Database Migrations with Liquibase
-
-Database versioning and initial data population are managed via Liquibase changelogs:
-
-- **Master Changelog**: `src/main/resources/db/changelog/db.changelog-master.xml`
-- **Schema Changeset**: `001-create-schema.xml` (author: `Vanlinh00`)
-  - `permissions`, `roles`, `role_permissions`, `users`, `courier_profiles`, `merchant_profiles`, `auth_audit_logs`
-- **Initial Data Load Changeset**: `002-load-initial-data.xml` (author: `Vanlinh00`)
-  - Loads data via `<loadData>` from CSV files in `src/main/resources/db/data/`:
-    - `permissions.csv`
-    - `roles.csv`
-    - `role_permissions.csv`
-    - `users.csv`
 
 ---
 
@@ -145,7 +171,7 @@ public enum MessageCode {
 ## 🎯 Key Design Patterns & Engineering Highlights
 
 ### 1. 🔄 Saga Pattern (Orchestration with Compensation)
-- The **Saga Pattern** manages distributed workflows across microservices:
+- Manages distributed workflows across microservices:
   1. **Step 1 (Order Service)**: Creates order in `PENDING` state and publishes `FleetPickupCommand` via Kafka.
   2. **Step 2 (Pickup Fleet Service)**: Locates and reserves the nearest courier driver. If no drivers are available, emits `FleetPickupResultEvent(success=false)`.
   3. **Step 3 (Payment Service)**: Reserves customer funds or validates COD amount.
@@ -160,28 +186,8 @@ public enum MessageCode {
 - **Automatic TTL**: 7-day TTL for tracking snapshots, 24-hour TTL for driver dispatch states.
 - **Redisson Distributed Locks**: Prevents race conditions during concurrent order status transitions.
 
-### 4. 🧩 GoF Design Patterns & SOLID Principles
-
-```
-                                  [ Client / OrderService ]
-                                             │
-                       ┌─────────────────────┴─────────────────────┐
-                       ▼                                           ▼
-             [ Singleton Pattern ]                        [ Factory Pattern ]
-          LogisticsConfigRegistry                      PricingStrategyFactory
-       (Bill Pugh Lazy Initialization)               (Open/Closed Dynamic Lookup)
-                       │                                           │
-                       └─────────────────────┬─────────────────────┘
-                                             ▼
-                                   [ Strategy Pattern ]
-                                 ShippingPricingStrategy
-                                             │
-         ┌───────────────────┬───────────────┴───────────────┬───────────────────┐
-         ▼                   ▼                               ▼                   ▼
-[ StandardStrategy ]  [ ExpressStrategy ]          [ HeavyFreightStrategy ] [ ColdChainStrategy ]
- (24-48h Road Van)    (4-8h Priority Air)           (Pallet / Tailgate)     (Temp-Controlled)
-```
-
+### 4. 🧩 GoF Design Patterns & Dynamic RBAC
+- **Dynamic Database-Driven RBAC**: Permissions are resolved dynamically from PostgreSQL join tables (`roles`, `permissions`, `role_permissions`) with zero hardcoded switch-case fallbacks.
 - **Strategy Pattern**: Pluggable pricing algorithms (`StandardShippingPricingStrategy`, `ExpressShippingPricingStrategy`, `HeavyFreightPricingStrategy`, `ColdChainPricingStrategy`).
 - **Factory Pattern**: Dynamic strategy lookups via `PricingStrategyFactory` and `NotificationStrategyFactory`.
 - **Singleton Pattern**: `LogisticsConfigRegistry` implemented with Bill Pugh Initialization-on-Demand Holder Idiom for zero-overhead, thread-safe configuration caching.
@@ -194,13 +200,14 @@ public enum MessageCode {
 | :--- | :--- | :--- | :--- | :--- |
 | **`api-gateway`** | `8000` | `8000` | — | Central Ingress, Routing & Rate Limiting |
 | **`service-registry`** | `8761` | `8761` | — | Netflix Eureka Service Discovery |
+| **`keycloak`** | `8080` | `8180` | `keycloak_db` | Centralized IAM, OpenID Connect & OAuth2 Provider |
 | **`user-auth-service`** | `8080 / 8086` | `8080 / 8086` | `auth_db` | JWT Authentication, BCrypt, 2FA & Dynamic RBAC |
 | **`order-service`** | `8081` | `8081` | `orders_db` | Order Lifecycle, Dynamic Pricing & Saga |
 | **`pickup-fleet-service`** | `8082` | `8082` | `fleet_db` | Courier Fleet & Dispatching |
 | **`fulfillment-service`** | `8083` | `8083` | `fulfillment_db` | Hub Sorting, Cross-Docking & Proof-of-Delivery |
 | **`tracking-service`** | `8084` | `8084` | `tracking_db` | Real-time GPS Spatial Index & Milestones |
 | **`notification-service`**| `8085` | `8085` | `notification_db` | Multi-channel SMS/Email Alerts |
-| **`PostgreSQL`** | `5432` | `5433` | *All 5 DBs* | Relational Multi-Database Storage |
+| **`PostgreSQL`** | `5432` | `5433` | *All 6 DBs* | Relational Multi-Database Storage |
 | **`Kafka`** | `9092` | `9092` | — | Event Streaming Backbone |
 | **`Redis`** | `6379` | `6379` | — | Distributed Cache & Geo Spatial Index |
 
@@ -213,9 +220,9 @@ public enum MessageCode {
 - **Apache Maven 3.9+**
 - **Docker Desktop & Docker Compose**
 
-### Step 1: Start Infrastructure Containers
+### Step 1: Start Infrastructure & IAM Containers
 ```bash
-docker-compose up -d postgres-db redis zookeeper kafka
+docker-compose up -d postgres keycloak redis zookeeper kafka
 ```
 
 ### Step 2: Build All Microservices
