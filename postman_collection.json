@@ -101,7 +101,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"usernameOrEmail\": \"admin\",\n  \"password\": \"admin123\"\n}"
+              "raw": "{\n  \"usernameOrEmail\": \"admin\",\n  \"password\": \"Test123456@\"\n}"
             },
             "url": {
               "raw": "{{gateway_url}}/api/v1/auth/login",

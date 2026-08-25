@@ -1,0 +1,454 @@
+{
+  "info": {
+    "_postman_id": "auth-service-vanlinh00-api",
+    "name": "User Auth Service API (Logistics Platform)",
+    "description": "Postman Collection for user-auth-service endpoints including Authentication, Token Validation, Refresh, Logout, User Context (/me), KYC & Merchant Profile with default password Test123456@.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "auth_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "gateway_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "jwt_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refresh_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "default_password",
+      "value": "Test123456@",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Authentication (Login / Register / Refresh / Logout)",
+      "item": [
+        {
+          "name": "1.1. Login as Admin (ROLE_ADMIN)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var res = pm.response.json();",
+                  "    var data = res.data || res;",
+                  "    if (data.accessToken) {",
+                  "        pm.collectionVariables.set('jwt_token', data.accessToken);",
+                  "        console.log('Admin JWT Token saved:', data.accessToken);",
+                  "    }",
+                  "    if (data.refreshToken) {",
+                  "        pm.collectionVariables.set('refresh_token', data.refreshToken);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usernameOrEmail\": \"admin\",\n  \"password\": \"Test123456@\"\n}"
+            },
+            "url": {
+              "raw": "{{auth_url}}/api/v1/auth/login",
+              "host": ["{{auth_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Logs in as System Administrator with seeded password Test123456@ and saves JWT token."
+          }
+        },
+        {
+          "name": "1.2. Login as Courier (ROLE_COURIER)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var res = pm.response.json();",
+                  "    var data = res.data || res;",
+                  "    if (data.accessToken) {",
+                  "        pm.collectionVariables.set('jwt_token', data.accessToken);",
+                  "        console.log('Courier JWT Token saved:', data.accessToken);",
+                  "    }",
+                  "    if (data.refreshToken) {",
+                  "        pm.collectionVariables.set('refresh_token', data.refreshToken);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usernameOrEmail\": \"courier01\",\n  \"password\": \"Test123456@\"\n}"
+            },
+            "url": {
+              "raw": "{{auth_url}}/api/v1/auth/login",
+              "host": ["{{auth_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Logs in as Courier Driver courier01 with seeded password Test123456@."
+          }
+        },
+        {
+          "name": "1.3. Login as Merchant (ROLE_MERCHANT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var res = pm.response.json();",
+                  "    var data = res.data || res;",
+                  "    if (data.accessToken) {",
+                  "        pm.collectionVariables.set('jwt_token', data.accessToken);",
+                  "        console.log('Merchant JWT Token saved:', data.accessToken);",
+                  "    }",
+                  "    if (data.refreshToken) {",
+                  "        pm.collectionVariables.set('refresh_token', data.refreshToken);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usernameOrEmail\": \"merchant01\",\n  \"password\": \"Test123456@\"\n}"
+            },
+            "url": {
+              "raw": "{{auth_url}}/api/v1/auth/login",
+              "host": ["{{auth_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Logs in as Merchant merchant01 with seeded password Test123456@."
+          }
+        },
+        {
+          "name": "1.4. Login as Dispatcher (ROLE_DISPATCHER)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var res = pm.response.json();",
+                  "    var data = res.data || res;",
+                  "    if (data.accessToken) {",
+                  "        pm.collectionVariables.set('jwt_token', data.accessToken);",
+                  "    }",
+                  "    if (data.refreshToken) {",
+                  "        pm.collectionVariables.set('refresh_token', data.refreshToken);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usernameOrEmail\": \"dispatcher01\",\n  \"password\": \"Test123456@\"\n}"
+            },
+            "url": {
+              "raw": "{{auth_url}}/api/v1/auth/login",
+              "host": ["{{auth_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Logs in as Dispatcher dispatcher01 with seeded password Test123456@."
+          }
+        },
+        {
+          "name": "1.5. Login as Customer (user001)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var res = pm.response.json();",
+                  "    var data = res.data || res;",
+                  "    if (data.accessToken) {",
+                  "        pm.collectionVariables.set('jwt_token', data.accessToken);",
+                  "    }",
+                  "    if (data.refreshToken) {",
+                  "        pm.collectionVariables.set('refresh_token', data.refreshToken);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usernameOrEmail\": \"user001\",\n  \"password\": \"Test123456@\"\n}"
+            },
+            "url": {
+              "raw": "{{auth_url}}/api/v1/auth/login",
+              "host": ["{{auth_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Logs in as seeded customer user001 (test1@gmail.com) with password Test123456@."
+          }
+        },
+        {
+          "name": "1.6. Register New User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"vanlinh00_client\",\n  \"email\": \"vanlinh00.test@example.com\",\n  \"password\": \"Test123456@\",\n  \"fullName\": \"Văn Linh\",\n  \"phone\": \"0988123456\",\n  \"role\": \"ROLE_CUSTOMER\"\n}"
+            },
+            "url": {
+              "raw": "{{auth_url}}/api/v1/auth/register",
+              "host": ["{{auth_url}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "description": "Registers a brand new customer / merchant / courier account."
+          }
+        },
+        {
+          "name": "1.7. Validate Token (Bearer Header)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{auth_url}}/api/v1/auth/validate",
+              "host": ["{{auth_url}}"],
+              "path": ["api", "v1", "auth", "validate"]
+            },
+            "description": "Validates the current JWT token using Authorization: Bearer <token> and returns user identity, roles, and DB permissions."
+          }
+        },
+        {
+          "name": "1.8. Refresh Access Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var res = pm.response.json();",
+                  "    var data = res.data || res;",
+                  "    if (data.accessToken) {",
+                  "        pm.collectionVariables.set('jwt_token', data.accessToken);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{auth_url}}/api/v1/auth/refresh",
+              "host": ["{{auth_url}}"],
+              "path": ["api", "v1", "auth", "refresh"]
+            },
+            "description": "Uses the refresh token to obtain a fresh access token without re-authenticating."
+          }
+        },
+        {
+          "name": "1.9. Logout (Blacklist in Redis)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{auth_url}}/api/v1/auth/logout",
+              "host": ["{{auth_url}}"],
+              "path": ["api", "v1", "auth", "logout"]
+            },
+            "description": "Invalidates the JWT access token into Redis Blacklist."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. User Profiles & KYC Context",
+      "item": [
+        {
+          "name": "2.1. Get Current User (/me)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{auth_url}}/api/v1/auth/me",
+              "host": ["{{auth_url}}"],
+              "path": ["api", "v1", "auth", "me"]
+            },
+            "description": "Returns full user entity data, profile metadata, roles, and permissions for the logged in user."
+          }
+        },
+        {
+          "name": "2.2. Submit Courier KYC",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"citizenId\": \"079095012345\",\n  \"vehicleType\": \"MOTORBIKE\",\n  \"licensePlate\": \"59-X1 888.99\",\n  \"assignedHubId\": \"HUB-TAN-BINH-01\",\n  \"maxCapacityKg\": 35.0\n}"
+            },
+            "url": {
+              "raw": "{{auth_url}}/api/v1/users/couriers/kyc",
+              "host": ["{{auth_url}}"],
+              "path": ["api", "v1", "users", "couriers", "kyc"]
+            },
+            "description": "Submits driver KYC profile and vehicle details."
+          }
+        },
+        {
+          "name": "2.3. Update Merchant Profile",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shopName\": \"VanLinh Fast Fashion\",\n  \"taxCode\": \"0315998877\",\n  \"warehouseAddress\": \"123 Le Loi, P. Ben Thanh, Q.1, TP.HCM\",\n  \"bankAccount\": \"19034567890123\",\n  \"bankName\": \"Techcombank\",\n  \"codTier\": \"VIP_FAST_PAYOUT\"\n}"
+            },
+            "url": {
+              "raw": "{{auth_url}}/api/v1/users/merchants/profile",
+              "host": ["{{auth_url}}"],
+              "path": ["api", "v1", "users", "merchants", "profile"]
+            },
+            "description": "Saves merchant store profile, bank payout details, and warehouse pickup location."
+          }
+        }
+      ]
+    }
+  ]
+}

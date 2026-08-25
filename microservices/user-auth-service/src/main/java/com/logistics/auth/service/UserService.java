@@ -1,5 +1,6 @@
 package com.logistics.auth.service;
 
+import com.logistics.auth.constant.MessageCode;
 import com.logistics.auth.dto.AuthDTOs.*;
 import com.logistics.auth.exception.InvalidCredentialsException;
 import com.logistics.auth.exception.ResourceNotFoundException;
@@ -29,17 +30,20 @@ public class UserService {
     private final CourierProfileRepository courierProfileRepository;
     private final MerchantProfileRepository merchantProfileRepository;
     private final PasswordEncoder passwordEncoder;
+    private final MessageService messageService;
 
     @Transactional(readOnly = true)
     public User getUserById(UUID userId) {
         return userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        messageService.getMessage(MessageCode.USER_NOT_FOUND) + " ID: " + userId));
     }
 
     @Transactional(readOnly = true)
     public User getUserByUsername(String username) {
         return userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with username: " + username));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        messageService.getMessage(MessageCode.USER_NOT_FOUND) + " Username: " + username));
     }
 
     @Transactional(readOnly = true)
@@ -70,7 +74,7 @@ public class UserService {
 
         if (!passwordEncoder.matches(request.getOldPassword(), user.getPasswordHash())
                 && !request.getOldPassword().equals(user.getPasswordHash())) {
-            throw new InvalidCredentialsException("Mật khẩu hiện tại không chính xác");
+            throw new InvalidCredentialsException(messageService.getMessage(MessageCode.PASSWORD_MISMATCH));
         }
 
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));

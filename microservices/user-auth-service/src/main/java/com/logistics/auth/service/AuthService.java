@@ -1,5 +1,6 @@
 package com.logistics.auth.service;
 
+import com.logistics.auth.constant.MessageCode;
 import com.logistics.auth.dto.AuthDTOs.*;
 import com.logistics.auth.exception.AccountInactiveException;
 import com.logistics.auth.exception.DuplicateUserException;
@@ -45,6 +46,7 @@ public class AuthService {
     private final KeycloakClient keycloakClient;
     private final TokenBlacklistService blacklistService;
     private final TotpService totpService;
+    private final MessageService messageService;
 
     @Transactional
     public AuthResponse login(LoginRequest request, HttpServletRequest httpRequest) {
@@ -56,12 +58,12 @@ public class AuthService {
                 .or(() -> userRepository.findByEmail(identifier))
                 .orElseThrow(() -> {
                     recordAudit(identifier, "LOGIN_FAILED", "User not found", httpRequest);
-                    return new InvalidCredentialsException("Tên đăng nhập hoặc mật khẩu không chính xác");
+                    return new InvalidCredentialsException(messageService.getMessage(MessageCode.UNAUTHORIZED));
                 });
 
         if (!Boolean.TRUE.equals(user.getActive())) {
             recordAudit(identifier, "LOGIN_FAILED", "Account deactivated", httpRequest);
-            throw new AccountInactiveException("Tài khoản người dùng đã bị khóa hoặc chưa kích hoạt");
+            throw new AccountInactiveException(messageService.getMessage(MessageCode.ACCOUNT_INACTIVE));
         }
 
         // 2. Validate password
@@ -70,7 +72,7 @@ public class AuthService {
 
         if (!passwordMatches) {
             recordAudit(identifier, "LOGIN_FAILED", "Invalid password", httpRequest);
-            throw new InvalidCredentialsException("Tên đăng nhập hoặc mật khẩu không chính xác");
+            throw new InvalidCredentialsException(messageService.getMessage(MessageCode.UNAUTHORIZED));
         }
 
         // 3. MFA verification check if 2FA is enabled for this account
@@ -80,14 +82,14 @@ public class AuthService {
                         .mfaRequired(true)
                         .username(user.getUsername())
                         .email(user.getEmail())
-                        .message("Vui lòng nhập mã xác thực 2FA (Google Authenticator)")
+                        .message(messageService.getMessage(MessageCode.MFA_REQUIRED))
                         .build();
             }
 
             boolean validTotp = totpService.verifyCode(user.getMfaSecret(), request.getMfaCode());
             if (!validTotp) {
                 recordAudit(identifier, "MFA_FAILED", "Invalid TOTP code", httpRequest);
-                throw new InvalidCredentialsException("Mã xác thực 2FA không chính xác");
+                throw new InvalidCredentialsException(messageService.getMessage(MessageCode.MFA_INVALID));
             }
         }
 
@@ -134,7 +136,7 @@ public class AuthService {
                 .fullName(user.getFullName())
                 .permissions(getPermissionsForRole(user.getRole()))
                 .mfaRequired(false)
-                .message("Đăng nhập thành công")
+                .message(messageService.getMessage(MessageCode.SUCCESS))
                 .build();
     }
 
@@ -143,11 +145,11 @@ public class AuthService {
         log.info("Registering new user: {} (role: {})", request.getUsername(), request.getRole());
 
         if (userRepository.existsByUsername(request.getUsername())) {
-            throw new DuplicateUserException("Tên đăng nhập đã tồn tại: " + request.getUsername());
+            throw new DuplicateUserException("Username already exists: " + request.getUsername());
         }
 
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new DuplicateUserException("Email đã được đăng ký: " + request.getEmail());
+            throw new DuplicateUserException("Email already registered: " + request.getEmail());
         }
 
         User.UserRole role = request.getRole() != null ? request.getRole() : User.UserRole.ROLE_CUSTOMER;
@@ -209,7 +211,7 @@ public class AuthService {
                 .role(savedUser.getRole().name())
                 .fullName(savedUser.getFullName())
                 .permissions(getPermissionsForRole(savedUser.getRole()))
-                .message("Đăng ký tài khoản thành công")
+                .message(messageService.getMessage(MessageCode.CREATED))
                 .build();
     }
 
@@ -217,7 +219,7 @@ public class AuthService {
     public AuthResponse refreshToken(RefreshTokenRequest request) {
         String token = request.getRefreshToken();
         if (token == null || token.isBlank()) {
-            throw new InvalidCredentialsException("Refresh token không hợp lệ");
+            throw new InvalidCredentialsException(messageService.getMessage(MessageCode.TOKEN_INVALID));
         }
 
         // Try Keycloak token refresh first
@@ -234,12 +236,13 @@ public class AuthService {
 
         // Validate local refresh token
         if (!jwtProvider.validateToken(token)) {
-            throw new InvalidCredentialsException("Refresh token đã hết hạn hoặc không hợp lệ");
+            throw new InvalidCredentialsException(messageService.getMessage(MessageCode.TOKEN_INVALID));
         }
 
         String username = jwtProvider.getUsernameFromToken(token);
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        messageService.getMessage(MessageCode.USER_NOT_FOUND) + " Username: " + username));
 
         String newAccess = jwtProvider.generateToken(
                 user.getId(),
@@ -336,7 +339,8 @@ public class AuthService {
     @Transactional
     public MfaSetupResponse setupMfa(String username) {
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        messageService.getMessage(MessageCode.USER_NOT_FOUND) + " Username: " + username));
 
         String secret = totpService.generateSecret();
         user.setMfaSecret(secret);
@@ -361,10 +365,11 @@ public class AuthService {
     @Transactional
     public boolean verifyAndEnableMfa(String username, String code) {
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        messageService.getMessage(MessageCode.USER_NOT_FOUND) + " Username: " + username));
 
         if (user.getMfaSecret() == null) {
-            throw new InvalidCredentialsException("MFA secret chưa được khởi tạo. Vui lòng gọi /api/v1/auth/mfa/setup trước.");
+            throw new InvalidCredentialsException("MFA secret is not initialized. Please call /api/v1/auth/mfa/setup first.");
         }
 
         boolean valid = totpService.verifyCode(user.getMfaSecret(), code);
@@ -379,57 +384,24 @@ public class AuthService {
 
     public List<String> getPermissionsForRoleName(String roleName) {
         if (roleName == null || roleName.isBlank()) {
-            return List.of("orders:read:self", "orders:create", "tracking:read");
+            return Collections.emptyList();
         }
         String standardRole = roleName.startsWith("ROLE_") ? roleName : "ROLE_" + roleName.toUpperCase();
-        try {
-            Optional<Role> roleOpt = roleRepository.findByCodeWithPermissions(standardRole);
-            if (roleOpt.isPresent() && roleOpt.get().getPermissions() != null && !roleOpt.get().getPermissions().isEmpty()) {
-                return roleOpt.get().getPermissions().stream()
-                        .map(Permission::getCode)
-                        .sorted()
-                        .toList();
-            }
-        } catch (Exception e) {
-            log.debug("Fallback to hardcoded permissions for {}: {}", standardRole, e.getMessage());
-        }
-
-        try {
-            User.UserRole enumRole = User.UserRole.valueOf(standardRole);
-            return getFallbackPermissions(enumRole);
-        } catch (Exception e) {
-            return List.of("orders:read:self", "orders:create", "tracking:read");
-        }
+        return roleRepository.findByCodeWithPermissions(standardRole)
+                .map(role -> role.getPermissions() != null
+                        ? role.getPermissions().stream()
+                                .map(Permission::getCode)
+                                .sorted()
+                                .toList()
+                        : Collections.<String>emptyList())
+                .orElse(Collections.emptyList());
     }
 
     public List<String> getPermissionsForRole(User.UserRole role) {
-        if (role == null) return List.of();
+        if (role == null) {
+            return Collections.emptyList();
+        }
         return getPermissionsForRoleName(role.name());
-    }
-
-    private List<String> getFallbackPermissions(User.UserRole role) {
-        return switch (role) {
-            case ROLE_ADMIN -> List.of(
-                    "orders:read", "orders:write", "orders:delete",
-                    "fleet:read", "fleet:dispatch",
-                    "users:read", "users:write", "users:admin",
-                    "analytics:view", "system:manage"
-            );
-            case ROLE_COURIER -> List.of(
-                    "orders:read", "orders:status:update", "orders:pod:upload",
-                    "fleet:status:toggle", "tracking:push:location"
-            );
-            case ROLE_MERCHANT -> List.of(
-                    "orders:read", "orders:create", "orders:cancel",
-                    "merchant:profile:manage", "inventory:sync"
-            );
-            case ROLE_DISPATCHER -> List.of(
-                    "orders:read", "orders:assign", "fleet:read", "fleet:route:optimize"
-            );
-            case ROLE_CUSTOMER -> List.of(
-                    "orders:read:self", "orders:create", "tracking:read"
-            );
-        };
     }
 
     private void recordAudit(String username, String eventType, String details, HttpServletRequest request) {
