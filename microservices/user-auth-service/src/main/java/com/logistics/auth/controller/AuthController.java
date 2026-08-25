@@ -65,9 +65,18 @@ public class AuthController {
     }
 
     @GetMapping(ApiPath.VALIDATE)
-    @Operation(summary = "Validate JWT Token and return principal role/userId")
-    public ResponseEntity<ApiResponse<TokenValidationResponse>> validateToken(@RequestParam("token") String token) {
-        TokenValidationResponse validation = authService.validateToken(token);
+    @Operation(summary = "Validate JWT Token from Authorization header or query param and return principal role/userId")
+    public ResponseEntity<ApiResponse<TokenValidationResponse>> validateToken(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestParam(value = "token", required = false) String tokenParam) {
+        String tokenToValidate = null;
+        if (authHeader != null && !authHeader.isBlank()) {
+            tokenToValidate = authHeader.startsWith("Bearer ") ? authHeader.substring(7) : authHeader;
+        } else if (tokenParam != null && !tokenParam.isBlank()) {
+            tokenToValidate = tokenParam.startsWith("Bearer ") ? tokenParam.substring(7) : tokenParam;
+        }
+
+        TokenValidationResponse validation = authService.validateToken(tokenToValidate);
         return ResponseEntity.ok(ApiResponse.ok(validation, "Token validation result"));
     }
 
