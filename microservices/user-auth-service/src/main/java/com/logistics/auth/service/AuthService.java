@@ -264,12 +264,25 @@ public class AuthService {
         }
 
         if (accessToken != null && !accessToken.isBlank()) {
-            blacklistService.blacklistToken(accessToken, jwtProvider.getExpirationMs());
+            String jti = jwtProvider.getJtiFromToken(accessToken);
+            if (jti != null && !jti.isBlank()) {
+                blacklistService.blacklistJti(jti, jwtProvider.getExpirationMs());
+                log.info("Access token jti [{}] blacklisted on logout", jti);
+            } else {
+                // Fallback for non-standard or opaque tokens
+                blacklistService.blacklistJti(accessToken, jwtProvider.getExpirationMs());
+            }
         }
 
         if (refreshToken != null && !refreshToken.isBlank()) {
             keycloakClient.logout(refreshToken);
-            blacklistService.blacklistToken(refreshToken, jwtProvider.getRefreshExpirationMs());
+            String refreshJti = jwtProvider.getJtiFromToken(refreshToken);
+            if (refreshJti != null && !refreshJti.isBlank()) {
+                blacklistService.blacklistJti(refreshJti, jwtProvider.getRefreshExpirationMs());
+                log.info("Refresh token jti [{}] blacklisted on logout", refreshJti);
+            } else {
+                blacklistService.blacklistJti(refreshToken, jwtProvider.getRefreshExpirationMs());
+            }
         }
 
         String username = accessToken != null ? jwtProvider.getUsernameFromToken(accessToken) : "anonymous";

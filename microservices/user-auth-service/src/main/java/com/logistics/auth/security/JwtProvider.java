@@ -32,6 +32,7 @@ public class JwtProvider {
     }
 
     public String generateToken(UUID userId, String username, String role, String email, String fullName) {
+        String jti = UUID.randomUUID().toString();
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId.toString());
         claims.put("role", role);
@@ -44,6 +45,7 @@ public class JwtProvider {
         Date expiryDate = new Date(now.getTime() + expirationMs);
 
         return Jwts.builder()
+                .id(jti)
                 .subject(username)
                 .claims(claims)
                 .issuedAt(now)
@@ -53,10 +55,12 @@ public class JwtProvider {
     }
 
     public String generateRefreshToken(UUID userId, String username) {
+        String jti = UUID.randomUUID().toString();
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + refreshExpirationMs);
 
         return Jwts.builder()
+                .id(jti)
                 .subject(username)
                 .claim("userId", userId.toString())
                 .claim("type", "REFRESH")
@@ -72,17 +76,32 @@ public class JwtProvider {
             return false;
         }
 
-        if (blacklistService.isBlacklisted(token)) {
-            log.warn("Rejected blacklisted/revoked token");
-            return false;
-        }
-
         try {
-            Jwts.parser().verifyWith(key).build().parseSignedClaims(token);
+            Claims claims = getClaimsFromToken(token);
+            String jti = claims.getId();
+
+            if (jti != null && blacklistService.isJtiBlacklisted(jti)) {
+                log.warn("Rejected blacklisted token with jti: {}", jti);
+                return false;
+            }
+
+            Date expiration = claims.getExpiration();
+            if (expiration != null && expiration.before(new Date())) {
+                return false;
+            }
+
             return true;
         } catch (Exception ex) {
-            log.debug("Internal JWT signature validation failed (might be Keycloak RS256 token): {}", ex.getMessage());
+            log.debug("JWT validation failed: {}", ex.getMessage());
             return false;
+        }
+    }
+
+    public String getJtiFromToken(String token) {
+        try {
+            return getClaimsFromToken(token).getId();
+        } catch (Exception e) {
+            return null;
         }
     }
 
