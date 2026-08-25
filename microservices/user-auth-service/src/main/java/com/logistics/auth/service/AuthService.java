@@ -300,14 +300,28 @@ public class AuthService {
 
         String username = jwtProvider.getUsernameFromToken(token);
         String role = jwtProvider.getRoleFromToken(token);
+        List<String> roles = jwtProvider.getAllRolesFromToken(token);
         UUID userId = jwtProvider.getUserIdFromToken(token);
+        String email = jwtProvider.getEmailFromToken(token);
+
+        // If userId or email is missing from token claims, enrich from Postgres User DB
+        if ((userId == null || email == null) && username != null) {
+            Optional<User> userOpt = userRepository.findByUsername(username);
+            if (userOpt.isPresent()) {
+                User u = userOpt.get();
+                if (userId == null) userId = u.getId();
+                if (email == null) email = u.getEmail();
+                if (role == null || role.equals("ROLE_CUSTOMER")) role = u.getRole().name();
+            }
+        }
 
         return TokenValidationResponse.builder()
                 .valid(true)
                 .username(username)
                 .role(role)
-                .roles(List.of(role))
+                .roles(roles)
                 .userId(userId)
+                .email(email)
                 .active(true)
                 .build();
     }
