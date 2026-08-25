@@ -75,7 +75,7 @@ class OrderControllerIntegrationTest {
                     .declaredValue(BigDecimal.valueOf(15000000))
                     .codAmount(BigDecimal.valueOf(15000000))
                     .items(List.of(
-                            OrderDTOs.OrderItemRequest.builder()
+                            OrderDTOs.CreateOrderItemRequest.builder()
                                     .itemName("Dell XPS 15")
                                     .quantity(1)
                                     .weightKg(2.0)
@@ -131,7 +131,7 @@ class OrderControllerIntegrationTest {
             Order order = Order.builder()
                     .id(UUID.randomUUID())
                     .trackingNumber(trackingNumber)
-                    .status(OrderStatus.IN_TRANSIT)
+                    .status(OrderStatus.IN_TRANSIT_BETWEEN_HUBS)
                     .senderName("TechStore HN")
                     .recipientName("Nguyễn Văn Linh")
                     .build();
@@ -143,7 +143,7 @@ class OrderControllerIntegrationTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success", is(true)))
                     .andExpect(jsonPath("$.data.trackingNumber", is(trackingNumber)))
-                    .andExpect(jsonPath("$.data.status", is("IN_TRANSIT")));
+                    .andExpect(jsonPath("$.data.status", is("IN_TRANSIT_BETWEEN_HUBS")));
         }
     }
 }

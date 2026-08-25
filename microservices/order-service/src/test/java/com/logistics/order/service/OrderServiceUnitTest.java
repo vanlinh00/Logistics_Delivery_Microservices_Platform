@@ -152,7 +152,7 @@ class OrderServiceUnitTest {
             verify(outboxRepository, times(1)).save(outboxCaptor.capture());
             OrderOutbox outbox = outboxCaptor.getValue();
             assertThat(outbox.getEventType()).isEqualTo("ORDER_CREATED");
-            assertThat(outbox.getStatus()).isEqualTo(OrderOutbox.OutboxStatus.PENDING);
+            assertThat(outbox.getProcessed()).isFalse();
         }
 
         @Test

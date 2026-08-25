@@ -62,7 +62,7 @@ class PricingCalculationServiceUnitTest {
                 .codFee(BigDecimal.valueOf(0))
                 .totalShippingFee(BigDecimal.valueOf(31000))
                 .currency("VND")
-                .estimatedDeliveryHours(48)
+                .estimatedDeliveryHours("48")
                 .build();
 
         when(pricingStrategyFactory.resolveStrategy(eq(1.5), eq(false), eq(false))).thenReturn(mockStrategy);
@@ -75,7 +75,7 @@ class PricingCalculationServiceUnitTest {
         assertThat(response).isNotNull();
         assertThat(response.getBaseFee()).isEqualByComparingTo(BigDecimal.valueOf(22000));
         assertThat(response.getTotalShippingFee()).isEqualByComparingTo(BigDecimal.valueOf(31000));
-        assertThat(response.getEstimatedDeliveryHours()).isEqualTo(48);
+        assertThat(response.getEstimatedDeliveryHours()).isEqualTo("48");
 
         verify(pricingStrategyFactory, times(1)).resolveStrategy(1.5, false, false);
         verify(mockStrategy, times(1)).calculatePrice(any(PricingContext.class));
