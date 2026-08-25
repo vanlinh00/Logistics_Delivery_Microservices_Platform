@@ -43,7 +43,7 @@ public class KeycloakJwtAuthenticationConverter implements Converter<Jwt, Abstra
     private Collection<GrantedAuthority> extractKeycloakRoles(Jwt jwt) {
         Set<GrantedAuthority> grantedAuthorities = new HashSet<>();
 
-        // 1. Extract Realm-Level Roles: { "realm_access": { "roles": ["ROLE_ADMIN", "ROLE_COURIER"] } }
+        // 1. Extract Realm-Level Roles: { "realm_access": { "roles": ["ROLE_ADMIN", "ROLE_COURIER", "ROLE_MERCHANT"] } }
         Map<String, Object> realmAccess = jwt.getClaimAsMap("realm_access");
         if (realmAccess != null && realmAccess.containsKey("roles")) {
             List<String> roles = (List<String>) realmAccess.get("roles");
@@ -53,7 +53,7 @@ public class KeycloakJwtAuthenticationConverter implements Converter<Jwt, Abstra
             }
         }
 
-        // 2. Extract Client-Level Roles: { "resource_access": { "order-service": { "roles": ["order:create"] } } }
+        // 2. Extract Client-Level Roles: { "resource_access": { "order-service": { "roles": ["orders:create"] } } }
         Map<String, Object> resourceAccess = jwt.getClaimAsMap("resource_access");
         if (resourceAccess != null) {
             resourceAccess.values().forEach(resource -> {
@@ -68,6 +68,12 @@ public class KeycloakJwtAuthenticationConverter implements Converter<Jwt, Abstra
                     }
                 }
             });
+        }
+
+        // 3. Extract Fine-Grained Permissions (e.g. "orders:create", "orders:cancel", "orders:read")
+        List<String> permissions = jwt.getClaimAsStringList("permissions");
+        if (permissions != null) {
+            permissions.forEach(perm -> grantedAuthorities.add(new SimpleGrantedAuthority(perm)));
         }
 
         return grantedAuthorities;
