@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- ========================================================================= -->
+    <!-- 001: CREATE ORDERS TABLE & INDEXES                                        -->
+    <!-- ========================================================================= -->
+    <changeSet id="001-create-orders-table" author="logistics-team">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="orders"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="orders">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" primaryKeyName="pk_orders" nullable="false"/>
+            </column>
+            <column name="tracking_number" type="VARCHAR(32)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uq_orders_tracking_number"/>
+            </column>
+            <column name="customer_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sender_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sender_phone" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sender_address" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sender_latitude" type="FLOAT8"/>
+            <column name="sender_longitude" type="FLOAT8"/>
+            <column name="recipient_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="recipient_phone" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="recipient_address" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="recipient_latitude" type="FLOAT8"/>
+            <column name="recipient_longitude" type="FLOAT8"/>
+            <column name="total_weight_kg" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="total_volume_m3" type="FLOAT8"/>
+            <column name="base_shipping_fee" type="NUMERIC(12, 2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="weight_surcharge" type="NUMERIC(12, 2)"/>
+            <column name="insurance_fee" type="NUMERIC(12, 2)"/>
+            <column name="cod_amount" type="NUMERIC(12, 2)"/>
+            <column name="total_amount" type="NUMERIC(12, 2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="special_instructions" type="VARCHAR(500)"/>
+            <column name="assigned_driver_id" type="VARCHAR(255)"/>
+            <column name="current_hub_id" type="VARCHAR(255)"/>
+            <column name="version" type="BIGINT"/>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+        </createTable>
+
+        <createIndex tableName="orders" indexName="idx_order_tracking_number" unique="true">
+            <column name="tracking_number"/>
+        </createIndex>
+
+        <createIndex tableName="orders" indexName="idx_order_customer_id">
+            <column name="customer_id"/>
+        </createIndex>
+
+        <createIndex tableName="orders" indexName="idx_order_status">
+            <column name="status"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- ========================================================================= -->
+    <!-- 002: CREATE ORDER_ITEMS TABLE & FOREIGN KEY                               -->
+    <!-- ========================================================================= -->
+    <changeSet id="002-create-order-items-table" author="logistics-team">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="order_items"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="order_items">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" primaryKeyName="pk_order_items" nullable="false"/>
+            </column>
+            <column name="order_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_order_items_order"
+                             references="orders(id)"/>
+            </column>
+            <column name="item_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="quantity" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="weight_kg" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="declared_value" type="NUMERIC(12, 2)"/>
+            <column name="category" type="VARCHAR(255)"/>
+        </createTable>
+
+        <createIndex tableName="order_items" indexName="idx_order_items_order_id">
+            <column name="order_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- ========================================================================= -->
+    <!-- 003: CREATE ORDER_OUTBOX TABLE & INDEXES (TRANSACTIONAL OUTBOX PATTERN)   -->
+    <!-- ========================================================================= -->
+    <changeSet id="003-create-order-outbox-table" author="logistics-team">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="order_outbox"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="order_outbox">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" primaryKeyName="pk_order_outbox" nullable="false"/>
+            </column>
+            <column name="aggregate_type" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="aggregate_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="event_type" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="payload" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="processed" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="retry_count" type="INT"/>
+            <column name="error_message" type="VARCHAR(255)"/>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="processed_at" type="TIMESTAMP"/>
+        </createTable>
+
+        <createIndex tableName="order_outbox" indexName="idx_outbox_status_created">
+            <column name="processed"/>
+            <column name="created_at"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
