@@ -1,7 +1,6 @@
 package com.logistics.order.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.logistics.order.dto.AddressValidationResult;
 import com.logistics.order.dto.OrderDTOs;
 import com.logistics.order.exception.BusinessRuleViolationException;
 import com.logistics.order.exception.InvalidStatusTransitionException;
@@ -11,6 +10,7 @@ import com.logistics.order.model.OrderOutbox;
 import com.logistics.order.model.OrderStatus;
 import com.logistics.order.repository.OrderOutboxRepository;
 import com.logistics.order.repository.OrderRepository;
+import com.logistics.order.service.AddressValidationService.ValidationResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -90,7 +90,7 @@ class OrderServiceUnitTest {
                 .declaredValue(BigDecimal.valueOf(15000000))
                 .codAmount(BigDecimal.valueOf(15000000))
                 .items(List.of(
-                        OrderDTOs.OrderItemRequest.builder()
+                        OrderDTOs.CreateOrderItemRequest.builder()
                                 .itemName("Dell XPS 15")
                                 .quantity(1)
                                 .weightKg(2.0)
@@ -117,7 +117,7 @@ class OrderServiceUnitTest {
         void createOrder_WhenValidRequest_ShouldSucceed() throws Exception {
             // Arrange
             when(addressService.validateAddress(sampleRequest.getSenderAddress(), sampleRequest.getSenderPhone()))
-                    .thenReturn(AddressValidationResult.builder()
+                    .thenReturn(ValidationResult.builder()
                             .valid(true)
                             .formattedAddress("Số 18 Duy Tân, Cầu Giấy, Hà Nội")
                             .latitude(21.0285)
@@ -125,7 +125,7 @@ class OrderServiceUnitTest {
                             .build());
 
             when(addressService.validateAddress(sampleRequest.getRecipientAddress(), sampleRequest.getRecipientPhone()))
-                    .thenReturn(AddressValidationResult.builder()
+                    .thenReturn(ValidationResult.builder()
                             .valid(true)
                             .formattedAddress("Tòa Bitexco, Q1, TP. Hồ Chí Minh")
                             .latitude(10.8015)
@@ -160,7 +160,7 @@ class OrderServiceUnitTest {
         void createOrder_WhenSenderAddressInvalid_ShouldThrowException() {
             // Arrange
             when(addressService.validateAddress(any(), any()))
-                    .thenReturn(AddressValidationResult.builder()
+                    .thenReturn(ValidationResult.builder()
                             .valid(false)
                             .message("Số điện thoại người gửi không đúng định dạng")
                             .build());
@@ -180,10 +180,10 @@ class OrderServiceUnitTest {
         void createOrder_WhenRecipientAddressInvalid_ShouldThrowException() {
             // Arrange
             when(addressService.validateAddress(sampleRequest.getSenderAddress(), sampleRequest.getSenderPhone()))
-                    .thenReturn(AddressValidationResult.builder().valid(true).formattedAddress("Valid Address").build());
+                    .thenReturn(ValidationResult.builder().valid(true).formattedAddress("Valid Address").build());
 
             when(addressService.validateAddress(sampleRequest.getRecipientAddress(), sampleRequest.getRecipientPhone()))
-                    .thenReturn(AddressValidationResult.builder().valid(false).message("Tòa nhà không tồn tại").build());
+                    .thenReturn(ValidationResult.builder().valid(false).message("Tòa nhà không tồn tại").build());
 
             // Act & Assert
             assertThatThrownBy(() -> orderService.createOrder(sampleRequest))
@@ -208,13 +208,13 @@ class OrderServiceUnitTest {
                     .status(OrderStatus.CREATED)
                     .build();
 
-            when(redissonClient.getLock("lock:order:status:" + orderId)).thenReturn(distributedLock);
+            when(redissonClient.getLock("lock:order:" + orderId)).thenReturn(distributedLock);
             when(distributedLock.tryLock(anyLong(), anyLong(), any(TimeUnit.class))).thenReturn(true);
             when(orderRepository.findById(orderId)).thenReturn(Optional.of(existingOrder));
             when(orderRepository.save(any(Order.class))).thenAnswer(i -> i.getArgument(0));
 
             OrderDTOs.UpdateOrderStatusRequest updateReq = OrderDTOs.UpdateOrderStatusRequest.builder()
-                    .newStatus(OrderStatus.CONFIRMED)
+                    .status("PAYMENT_CONFIRMED")
                     .note("Xác nhận điều phối xe bưu tá")
                     .build();
 
@@ -222,7 +222,7 @@ class OrderServiceUnitTest {
             Order updated = orderService.updateOrderStatus(orderId, updateReq);
 
             // Assert
-            assertThat(updated.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
+            assertThat(updated.getStatus()).isEqualTo(OrderStatus.PAYMENT_CONFIRMED);
             verify(distributedLock, times(1)).unlock();
         }
 
@@ -235,7 +235,7 @@ class OrderServiceUnitTest {
             when(orderRepository.findById(orderId)).thenReturn(Optional.empty());
 
             OrderDTOs.UpdateOrderStatusRequest updateReq = OrderDTOs.UpdateOrderStatusRequest.builder()
-                    .newStatus(OrderStatus.PICKED_UP)
+                    .status("PICKED_UP")
                     .build();
 
             assertThatThrownBy(() -> orderService.updateOrderStatus(orderId, updateReq))
