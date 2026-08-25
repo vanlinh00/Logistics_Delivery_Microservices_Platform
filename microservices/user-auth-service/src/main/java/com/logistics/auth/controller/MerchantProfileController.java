@@ -1,5 +1,6 @@
 package com.logistics.auth.controller;
 
+import com.logistics.auth.constant.ApiPath;
 import com.logistics.auth.dto.ApiResponse;
 import com.logistics.auth.dto.AuthDTOs.MerchantProfileRequest;
 import com.logistics.auth.model.MerchantProfile;
@@ -16,14 +17,14 @@ import java.security.Principal;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/users/merchants")
+@RequestMapping(ApiPath.MERCHANTS_BASE)
 @RequiredArgsConstructor
 @Tag(name = "Merchant Profile & Settings", description = "Merchant Shop Information, Tax IDs, Warehouses, and COD Tiers")
 public class MerchantProfileController {
 
     private final MerchantService merchantService;
 
-    @PostMapping("/profile")
+    @PostMapping(ApiPath.PROFILE)
     @Operation(summary = "Save or update merchant business profile, warehouse, and bank account")
     @PreAuthorize("hasAnyRole('ROLE_MERCHANT', 'ROLE_ADMIN')")
     public ResponseEntity<ApiResponse<MerchantProfile>> saveMerchantProfile(
@@ -33,7 +34,7 @@ public class MerchantProfileController {
         return ResponseEntity.ok(ApiResponse.ok(profile, "Merchant profile updated"));
     }
 
-    @GetMapping("/profile/{userId}")
+    @GetMapping(ApiPath.PROFILE_BY_ID)
     @Operation(summary = "Get merchant profile by user ID")
     public ResponseEntity<ApiResponse<MerchantProfile>> getMerchantProfile(@PathVariable("userId") UUID userId) {
         MerchantProfile profile = merchantService.getMerchantProfile(userId);

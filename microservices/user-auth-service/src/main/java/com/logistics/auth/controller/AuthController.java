@@ -1,5 +1,6 @@
 package com.logistics.auth.controller;
 
+import com.logistics.auth.constant.ApiPath;
 import com.logistics.auth.dto.ApiResponse;
 import com.logistics.auth.dto.AuthDTOs.*;
 import com.logistics.auth.service.AuthService;
@@ -18,7 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import java.security.Principal;
 
 @RestController
-@RequestMapping("/api/v1/auth")
+@RequestMapping(ApiPath.AUTH_BASE)
 @RequiredArgsConstructor
 @Tag(name = "Authentication & OIDC IAM Bridge", description = "Enterprise Login, Registration, Keycloak Token Exchange, MFA/TOTP, and Session Revocation")
 public class AuthController {
@@ -26,7 +27,7 @@ public class AuthController {
     private final AuthService authService;
     private final UserService userService;
 
-    @PostMapping("/login")
+    @PostMapping(ApiPath.LOGIN)
     @Operation(summary = "Authenticate user (Keycloak OIDC / Local) and return JWT token pair")
     public ResponseEntity<ApiResponse<AuthResponse>> login(
             @Valid @RequestBody LoginRequest request,
@@ -35,7 +36,7 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.ok(response, response.getMessage()));
     }
 
-    @PostMapping("/register")
+    @PostMapping(ApiPath.REGISTER)
     @Operation(summary = "Register customer, merchant, or courier account with auto-profile setup")
     public ResponseEntity<ApiResponse<AuthResponse>> register(
             @Valid @RequestBody RegisterRequest request,
@@ -45,14 +46,14 @@ public class AuthController {
                 .body(ApiResponse.created(response, "User registered successfully"));
     }
 
-    @PostMapping("/refresh")
+    @PostMapping(ApiPath.REFRESH)
     @Operation(summary = "Rotate & refresh JWT access token")
     public ResponseEntity<ApiResponse<AuthResponse>> refresh(@Valid @RequestBody RefreshTokenRequest request) {
         AuthResponse response = authService.refreshToken(request);
         return ResponseEntity.ok(ApiResponse.ok(response, "Token refreshed"));
     }
 
-    @PostMapping("/logout")
+    @PostMapping(ApiPath.LOGOUT)
     @Operation(summary = "Logout user and invalidate token in Redis Blacklist & Keycloak")
     public ResponseEntity<ApiResponse<Void>> logout(
             @RequestHeader(value = "Authorization", required = false) String authHeader,
@@ -63,14 +64,14 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.ok(null, "Logged out successfully"));
     }
 
-    @GetMapping("/validate")
+    @GetMapping(ApiPath.VALIDATE)
     @Operation(summary = "Validate JWT Token and return principal role/userId")
     public ResponseEntity<ApiResponse<TokenValidationResponse>> validateToken(@RequestParam("token") String token) {
         TokenValidationResponse validation = authService.validateToken(token);
         return ResponseEntity.ok(ApiResponse.ok(validation, "Token validation result"));
     }
 
-    @GetMapping("/me")
+    @GetMapping(ApiPath.ME)
     @Operation(summary = "Get current authenticated user context, profiles, and permissions")
     public ResponseEntity<ApiResponse<UserSummaryDTO>> getCurrentUser(Principal principal) {
         if (principal == null) {
@@ -81,7 +82,7 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.ok(summary, "Current user context"));
     }
 
-    @PostMapping("/mfa/setup")
+    @PostMapping(ApiPath.MFA_SETUP)
     @Operation(summary = "Generate TOTP secret and QR code URI for 2FA setup")
     public ResponseEntity<ApiResponse<MfaSetupResponse>> setupMfa(Principal principal) {
         if (principal == null) {
@@ -91,7 +92,7 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.ok(response, "MFA setup initialized"));
     }
 
-    @PostMapping("/mfa/verify")
+    @PostMapping(ApiPath.MFA_VERIFY)
     @Operation(summary = "Verify TOTP code and enable 2FA on account")
     public ResponseEntity<ApiResponse<Boolean>> verifyMfa(
             Principal principal,

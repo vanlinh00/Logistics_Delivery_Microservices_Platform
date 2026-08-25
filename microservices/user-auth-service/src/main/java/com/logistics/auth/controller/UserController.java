@@ -1,5 +1,6 @@
 package com.logistics.auth.controller;
 
+import com.logistics.auth.constant.ApiPath;
 import com.logistics.auth.dto.ApiResponse;
 import com.logistics.auth.dto.AuthDTOs.*;
 import com.logistics.auth.model.User;
@@ -18,14 +19,14 @@ import java.security.Principal;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/users")
+@RequestMapping(ApiPath.USERS_BASE)
 @RequiredArgsConstructor
 @Tag(name = "User Management & Administration", description = "User Profiles, Passwords, and Admin User Governance")
 public class UserController {
 
     private final UserService userService;
 
-    @GetMapping("/{userId}")
+    @GetMapping(ApiPath.BY_ID)
     @Operation(summary = "Get user entity by ID")
     @PreAuthorize("hasRole('ROLE_ADMIN') or #userId.toString() == authentication.principal")
     public ResponseEntity<ApiResponse<User>> getUserById(@PathVariable("userId") UUID userId) {
@@ -33,7 +34,7 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.ok(user, "User retrieved"));
     }
 
-    @PostMapping("/password/change")
+    @PostMapping(ApiPath.PASSWORD_CHANGE)
     @Operation(summary = "Change current user's password")
     public ResponseEntity<ApiResponse<Void>> changePassword(
             Principal principal,
@@ -42,7 +43,7 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.ok(null, "Password changed successfully"));
     }
 
-    @GetMapping("/admin/all")
+    @GetMapping(ApiPath.ADMIN_ALL)
     @Operation(summary = "List all platform users (Admin only)")
     @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<ApiResponse<Page<User>>> getAllUsers(Pageable pageable) {
@@ -50,7 +51,7 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.ok(users, "User page retrieved"));
     }
 
-    @PutMapping("/admin/{userId}/status")
+    @PutMapping(ApiPath.ADMIN_STATUS)
     @Operation(summary = "Activate or Deactivate user account (Admin only)")
     @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<ApiResponse<User>> toggleStatus(
@@ -60,7 +61,7 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.ok(updated, "User status updated"));
     }
 
-    @GetMapping("/stats")
+    @GetMapping(ApiPath.STATS)
     @Operation(summary = "Get platform IAM and user statistics")
     public ResponseEntity<ApiResponse<AuthStatsResponse>> getStats() {
         AuthStatsResponse stats = userService.getStats();

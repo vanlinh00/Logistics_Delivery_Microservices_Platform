@@ -1,5 +1,6 @@
 package com.logistics.fulfillment.controller;
 
+import com.logistics.fulfillment.constant.ApiPath;
 import com.logistics.fulfillment.model.HubTransitRecord;
 import com.logistics.fulfillment.model.ProofOfDelivery;
 import com.logistics.fulfillment.repository.HubTransitRepository;
@@ -14,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/fulfillment")
+@RequestMapping(ApiPath.FULFILLMENT_BASE)
 @RequiredArgsConstructor
 @Tag(name = "Delivery Fulfillment & Hub Transit", description = "Endpoints for hub package sorting, linehaul transit, and POD submission")
 public class FulfillmentController {
@@ -23,7 +24,7 @@ public class FulfillmentController {
     private final HubTransitRepository transitRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
 
-    @PostMapping("/pod")
+    @PostMapping(ApiPath.POD)
     @Operation(summary = "Submit Proof of Delivery (POD) with signature and photo attachment")
     public ResponseEntity<ProofOfDelivery> submitPOD(@RequestBody ProofOfDelivery pod) {
         pod.setResult(ProofOfDelivery.DeliveryResult.SUCCESS);
@@ -35,7 +36,7 @@ public class FulfillmentController {
         return ResponseEntity.ok(saved);
     }
 
-    @GetMapping("/pod/{trackingNumber}")
+    @GetMapping(ApiPath.POD_BY_TRACKING)
     @Operation(summary = "Get Proof of Delivery details by tracking number")
     public ResponseEntity<ProofOfDelivery> getPOD(@PathVariable String trackingNumber) {
         return podRepository.findByTrackingNumber(trackingNumber)
@@ -43,7 +44,7 @@ public class FulfillmentController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @PostMapping("/hub-transit/scan")
+    @PostMapping(ApiPath.HUB_TRANSIT_SCAN)
     @Operation(summary = "Scan package checkpoint at logistics hub")
     public ResponseEntity<HubTransitRecord> recordHubScan(@RequestBody HubTransitRecord record) {
         HubTransitRecord saved = transitRepository.save(record);
@@ -51,7 +52,7 @@ public class FulfillmentController {
         return ResponseEntity.ok(saved);
     }
 
-    @GetMapping("/hub-transit/{trackingNumber}")
+    @GetMapping(ApiPath.HUB_TRANSIT_BY_TRACKING)
     @Operation(summary = "List all hub sorting and transit scans for shipment")
     public ResponseEntity<List<HubTransitRecord>> getHubScans(@PathVariable String trackingNumber) {
         return ResponseEntity.ok(transitRepository.findByTrackingNumberOrderByScannedAtDesc(trackingNumber));

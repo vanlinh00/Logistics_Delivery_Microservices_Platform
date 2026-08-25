@@ -1,5 +1,6 @@
 package com.logistics.fleet.controller;
 
+import com.logistics.fleet.constant.ApiPath;
 import com.logistics.fleet.dto.ApiResponse;
 import com.logistics.fleet.model.Driver;
 import com.logistics.fleet.model.PickupTask;
@@ -17,7 +18,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/fleet")
+@RequestMapping(ApiPath.FLEET_BASE)
 @RequiredArgsConstructor
 @Tag(name = "Fleet & Pickup Dispatch", description = "Endpoints for driver allocation, batch pickups, and route assignment")
 public class FleetController {
@@ -27,7 +28,7 @@ public class FleetController {
     private final FleetDispatchService dispatchService;
     private final ParallelDriverMatchingService parallelMatchingService;
 
-    @GetMapping("/drivers")
+    @GetMapping(ApiPath.DRIVERS)
     @Operation(summary = "List all active drivers with status and GPS")
     public ResponseEntity<ApiResponse<List<Driver>>> getDrivers(@RequestParam(required = false) Driver.DriverStatus status) {
         if (status != null) {
@@ -36,14 +37,14 @@ public class FleetController {
         return ResponseEntity.ok(ApiResponse.ok(driverRepository.findAll(), "All drivers"));
     }
 
-    @PostMapping("/drivers")
+    @PostMapping(ApiPath.DRIVERS)
     @Operation(summary = "Register a new courier driver to the fleet")
     public ResponseEntity<ApiResponse<Driver>> registerDriver(@RequestBody Driver driver) {
         driver.setStatus(Driver.DriverStatus.AVAILABLE);
         return ResponseEntity.ok(ApiResponse.ok(driverRepository.save(driver), "Driver registered successfully"));
     }
 
-    @GetMapping("/pickups")
+    @GetMapping(ApiPath.PICKUPS)
     @Operation(summary = "List pickup tasks")
     public ResponseEntity<ApiResponse<List<PickupTask>>> getPickups(@RequestParam(required = false) PickupTask.PickupStatus status) {
         if (status != null) {
@@ -52,13 +53,13 @@ public class FleetController {
         return ResponseEntity.ok(ApiResponse.ok(pickupTaskRepository.findAll(), "All pickups"));
     }
 
-    @PostMapping("/pickups/{taskId}/assign/{driverId}")
+    @PostMapping(ApiPath.ASSIGN_PICKUP)
     @Operation(summary = "Dispatch pickup task to courier driver")
     public ResponseEntity<ApiResponse<PickupTask>> assignPickup(@PathVariable UUID taskId, @PathVariable UUID driverId) {
         return ResponseEntity.ok(ApiResponse.ok(dispatchService.assignDriverToPickup(taskId, driverId), "Driver assigned"));
     }
 
-    @GetMapping("/find-nearest-driver")
+    @GetMapping(ApiPath.FIND_NEAREST_DRIVER)
     @Operation(summary = "Auto-find nearest available driver for pickup coordinates")
     public ResponseEntity<ApiResponse<Driver>> findNearestDriver(
             @RequestParam Double lat,
@@ -70,7 +71,7 @@ public class FleetController {
                 : ResponseEntity.notFound().build();
     }
 
-    @GetMapping("/rank-drivers-concurrently")
+    @GetMapping(ApiPath.RANK_DRIVERS_CONCURRENTLY)
     @Operation(summary = "Multi-threaded parallel calculation ranking all available drivers by Haversine distance and ETA")
     public ResponseEntity<ApiResponse<List<ParallelDriverMatchingService.DriverMatchScore>>> rankDriversConcurrently(
             @RequestParam Double lat,

@@ -1,5 +1,6 @@
 package com.logistics.auth.controller;
 
+import com.logistics.auth.constant.ApiPath;
 import com.logistics.auth.dto.ApiResponse;
 import com.logistics.auth.dto.AuthDTOs.CourierKycRequest;
 import com.logistics.auth.dto.AuthDTOs.CourierShiftRequest;
@@ -18,14 +19,14 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/users/couriers")
+@RequestMapping(ApiPath.COURIERS_BASE)
 @RequiredArgsConstructor
 @Tag(name = "Courier KYC & Fleet Profiles", description = "Courier KYC Verification, Vehicle Registration, Shift Toggling, and Hub Fleet Management")
 public class CourierProfileController {
 
     private final CourierService courierService;
 
-    @PostMapping("/kyc")
+    @PostMapping(ApiPath.KYC)
     @Operation(summary = "Submit or update courier KYC details (Vehicle, CCCD, Hub assignment)")
     @PreAuthorize("hasAnyRole('ROLE_COURIER', 'ROLE_ADMIN')")
     public ResponseEntity<ApiResponse<CourierProfile>> submitKyc(
@@ -35,7 +36,7 @@ public class CourierProfileController {
         return ResponseEntity.ok(ApiResponse.ok(profile, "Courier KYC saved"));
     }
 
-    @PutMapping("/shift")
+    @PutMapping(ApiPath.SHIFT)
     @Operation(summary = "Toggle courier online/offline shift status")
     @PreAuthorize("hasRole('ROLE_COURIER')")
     public ResponseEntity<ApiResponse<CourierProfile>> toggleShift(
@@ -45,14 +46,14 @@ public class CourierProfileController {
         return ResponseEntity.ok(ApiResponse.ok(profile, "Shift status updated"));
     }
 
-    @GetMapping("/profile/{userId}")
+    @GetMapping(ApiPath.PROFILE_BY_ID)
     @Operation(summary = "Get courier profile by user ID")
     public ResponseEntity<ApiResponse<CourierProfile>> getCourierProfile(@PathVariable("userId") UUID userId) {
         CourierProfile profile = courierService.getCourierProfile(userId);
         return ResponseEntity.ok(ApiResponse.ok(profile, "Courier profile retrieved"));
     }
 
-    @GetMapping("/hub/{hubId}/active")
+    @GetMapping(ApiPath.HUB_ACTIVE)
     @Operation(summary = "Get online couriers by Hub ID for dispatch optimization")
     @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_DISPATCHER', 'ROLE_HUB_OPERATOR')")
     public ResponseEntity<ApiResponse<List<CourierProfile>>> getActiveCouriersByHub(@PathVariable("hubId") String hubId) {
