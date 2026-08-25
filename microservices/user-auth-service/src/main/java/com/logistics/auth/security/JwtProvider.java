@@ -3,34 +3,42 @@ package com.logistics.auth.security;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 @Component
+@Slf4j
 public class JwtProvider {
 
     private final SecretKey key;
     private final long expirationMs;
+    private final long refreshExpirationMs;
+    private final TokenBlacklistService blacklistService;
 
     public JwtProvider(
             @Value("${jwt.secret:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}") String secret,
-            @Value("${jwt.expiration:86400000}") long expirationMs) {
+            @Value("${jwt.expiration:86400000}") long expirationMs,
+            @Value("${jwt.refresh-expiration:604800000}") long refreshExpirationMs,
+            TokenBlacklistService blacklistService) {
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expirationMs = expirationMs;
+        this.refreshExpirationMs = refreshExpirationMs;
+        this.blacklistService = blacklistService;
     }
 
-    public String generateToken(UUID userId, String username, String role, String email) {
+    public String generateToken(UUID userId, String username, String role, String email, String fullName) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId.toString());
         claims.put("role", role);
+        claims.put("roles", List.of(role));
         claims.put("email", email);
+        claims.put("name", fullName != null ? fullName : username);
+        claims.put("iss", "logistics-auth-service");
 
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expirationMs);
@@ -46,12 +54,13 @@ public class JwtProvider {
 
     public String generateRefreshToken(UUID userId, String username) {
         Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + (expirationMs * 7)); // 7 days
+        Date expiryDate = new Date(now.getTime() + refreshExpirationMs);
 
         return Jwts.builder()
                 .subject(username)
                 .claim("userId", userId.toString())
                 .claim("type", "REFRESH")
+                .claim("iss", "logistics-auth-service")
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(key)
@@ -59,10 +68,20 @@ public class JwtProvider {
     }
 
     public boolean validateToken(String token) {
+        if (token == null || token.isBlank()) {
+            return false;
+        }
+
+        if (blacklistService.isBlacklisted(token)) {
+            log.warn("Rejected blacklisted/revoked token");
+            return false;
+        }
+
         try {
             Jwts.parser().verifyWith(key).build().parseSignedClaims(token);
             return true;
         } catch (Exception ex) {
+            log.debug("Internal JWT signature validation failed (might be Keycloak RS256 token): {}", ex.getMessage());
             return false;
         }
     }
@@ -80,11 +99,32 @@ public class JwtProvider {
     }
 
     public String getRoleFromToken(String token) {
-        return (String) getClaimsFromToken(token).get("role");
+        Claims claims = getClaimsFromToken(token);
+        String role = (String) claims.get("role");
+        if (role != null) return role;
+
+        @SuppressWarnings("unchecked")
+        List<String> roles = (List<String>) claims.get("roles");
+        if (roles != null && !roles.isEmpty()) return roles.get(0);
+
+        return "ROLE_CUSTOMER";
     }
 
     public UUID getUserIdFromToken(String token) {
         String userIdStr = (String) getClaimsFromToken(token).get("userId");
-        return UUID.fromString(userIdStr);
+        if (userIdStr != null) {
+            try {
+                return UUID.fromString(userIdStr);
+            } catch (Exception ignored) {}
+        }
+        return null;
+    }
+
+    public long getExpirationMs() {
+        return expirationMs;
+    }
+
+    public long getRefreshExpirationMs() {
+        return refreshExpirationMs;
     }
 }

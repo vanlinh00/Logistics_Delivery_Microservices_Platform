@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { DevOpsLab } from './components/DevOpsLab';
 import { ElasticsearchLab } from './components/ElasticsearchLab';
+import { KeycloakLab } from './components/KeycloakLab';
 
 interface MicroserviceInfo {
   id: string;
@@ -62,12 +63,21 @@ const SERVICES: MicroserviceInfo[] = [
   },
   {
     id: 'user-auth',
-    name: 'User & Authentication IAM',
+    name: 'User & Authentication IAM Service',
     port: 8080,
-    description: 'JWT issuance, OAuth2/RBAC, driver/merchant authorization',
-    tech: ['Spring Security 6', 'JWT', 'PostgreSQL'],
+    description: 'Spring Boot 3.4 IAM bridge, Keycloak token exchange, Courier KYC, Merchant profiles & Redis blacklist',
+    tech: ['Spring Security 6', 'Keycloak OIDC', 'Redis Blacklist', 'PostgreSQL'],
     status: 'UP',
-    endpoints: ['/api/v1/auth/login', '/api/v1/auth/register', '/api/v1/users'],
+    endpoints: ['/api/v1/auth/login', '/api/v1/auth/register', '/api/v1/users/couriers/kyc', '/api/v1/users/merchants/profile'],
+  },
+  {
+    id: 'keycloak',
+    name: 'Keycloak 24 IAM & SSO Provider',
+    port: 8180,
+    description: 'Enterprise OIDC / OAuth2.1 Identity Provider, RS256 JWKS asymmetric token signing & RBAC realm federation',
+    tech: ['Keycloak 24.0.2', 'OIDC Core 1.0', 'JWKS Certs', 'PostgreSQL'],
+    status: 'UP',
+    endpoints: ['/realms/logistics-realm/.well-known/openid-configuration', '/protocol/openid-connect/token', '/protocol/openid-connect/certs'],
   },
   {
     id: 'order',
@@ -168,7 +178,7 @@ const SAMPLE_ORDERS = [
 ];
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'topology' | 'orders' | 'elasticsearch' | 'commands' | 'architecture' | 'threading' | 'devops' | 'postman'>('topology');
+  const [activeTab, setActiveTab] = useState<'topology' | 'orders' | 'keycloak' | 'elasticsearch' | 'commands' | 'architecture' | 'threading' | 'devops' | 'postman'>('keycloak');
   const [copiedFile, setCopiedFile] = useState<string | null>(null);
   const [searchTrackingCode, setSearchTrackingCode] = useState('ORD-984210');
   const [orderList, setOrderList] = useState(SAMPLE_ORDERS);
@@ -281,6 +291,15 @@ export default function App() {
 
           {/* Navigation Tabs */}
           <div className="flex items-center bg-slate-800/80 p-1 rounded-xl border border-slate-700/60">
+            <button
+              onClick={() => setActiveTab('keycloak')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                activeTab === 'keycloak' ? 'bg-indigo-600 text-white font-bold shadow-lg shadow-indigo-600/30' : 'text-indigo-400/90 hover:text-indigo-200 hover:bg-indigo-500/10'
+              }`}
+            >
+              <ShieldCheck className="h-3.5 w-3.5 text-indigo-400" />
+              Keycloak 24 IAM & OIDC
+            </button>
             <button
               onClick={() => setActiveTab('topology')}
               className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
@@ -872,6 +891,9 @@ export default function App() {
             </div>
           </div>
         )}
+
+        {/* TAB: KEYCLOAK 24 IAM & OIDC LAB */}
+        {activeTab === 'keycloak' && <KeycloakLab />}
 
         {/* TAB: ELASTICSEARCH 8.12 DISTRIBUTED SEARCH LAB */}
         {activeTab === 'elasticsearch' && <ElasticsearchLab />}

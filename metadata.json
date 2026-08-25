@@ -1,6 +1,6 @@
 {
   "name": "Logistics Microservices Platform",
-  "description": "Enterprise Logistics & Delivery Microservices Platform with Elasticsearch 8.x Distributed Search, Kafka CDC, Docker & Kubernetes",
+  "description": "Enterprise Logistics & Delivery Microservices Platform with Keycloak 24 IAM OAuth2/OIDC, Elasticsearch 8.x Distributed Search, Kafka CDC, Docker & Kubernetes",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

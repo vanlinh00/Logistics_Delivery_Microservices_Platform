@@ -148,9 +148,12 @@ services:
       - DB_NAME=auth_db
       - REDIS_HOST=redis
       - EUREKA_HOST=service-registry
+      - KEYCLOAK_URL=http://keycloak:8080
+      - KEYCLOAK_ENABLED=true
     depends_on:
       - postgres
       - redis
+      - keycloak
       - service-registry
     networks:
       - logistics-network
@@ -213,10 +216,32 @@ services:
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-      - POSTGRES_MULTIPLE_DATABASES=orders_db,fleet_db,fulfillment_db,tracking_db,notification_db,auth_db
+      - POSTGRES_MULTIPLE_DATABASES=orders_db,fleet_db,fulfillment_db,tracking_db,notification_db,auth_db,keycloak_db
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./infrastructure/postgres/init-multi-db.sh:/docker-entrypoint-initdb.d/init-multi-db.sh
+    networks:
+      - logistics-network
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.2
+    container_name: logistics-keycloak
+    command: start-dev --import-realm
+    ports:
+      - "8180:8080"
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+      - KC_DB=postgres
+      - KC_DB_URL=jdbc:postgresql://postgres:5432/keycloak_db
+      - KC_DB_USERNAME=postgres
+      - KC_DB_PASSWORD=postgres
+      - KC_HEALTH_ENABLED=true
+      - KC_METRICS_ENABLED=true
+    volumes:
+      - ./infrastructure/keycloak/logistics-realm.json:/opt/keycloak/data/import/logistics-realm.json:ro
+    depends_on:
+      - postgres
     networks:
       - logistics-network
 

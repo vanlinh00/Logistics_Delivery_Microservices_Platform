@@ -1,0 +1,172 @@
+{
+  "realm": "logistics-realm",
+  "displayName": "Logistics & Delivery Enterprise IAM",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "accessTokenLifespan": 3600,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "roles": {
+    "realm": [
+      {
+        "name": "ROLE_ADMIN",
+        "description": "Logistics System Administrator with unrestricted access"
+      },
+      {
+        "name": "ROLE_DISPATCHER",
+        "description": "Fleet & Hub Coordinator, assigns drivers and schedules pickups"
+      },
+      {
+        "name": "ROLE_COURIER",
+        "description": "Delivery Shipper / Driver with tracking & barcode scanning permissions"
+      },
+      {
+        "name": "ROLE_MERCHANT",
+        "description": "E-commerce merchant / shop owner creating bulk orders & pickups"
+      },
+      {
+        "name": "ROLE_CUSTOMER",
+        "description": "End customer placing orders and viewing real-time tracking"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "logistics-frontend",
+      "name": "Logistics React Frontend SPA",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:3000/*",
+        "http://localhost:5173/*",
+        "https://*.run.app/*"
+      ],
+      "webOrigins": [
+        "*"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      }
+    },
+    {
+      "clientId": "logistics-api-gateway",
+      "name": "Spring Cloud API Gateway",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "logistics-gateway-secret-2024-enterprise-jwt",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "bearerOnly": false,
+      "redirectUris": [
+        "http://localhost:8000/login/oauth2/code/*"
+      ]
+    },
+    {
+      "clientId": "order-service",
+      "name": "Order Management Microservice",
+      "enabled": true,
+      "bearerOnly": true,
+      "defaultClientScopes": [
+        "web-origins",
+        "role_list",
+        "profile",
+        "roles",
+        "email"
+      ]
+    },
+    {
+      "clientId": "tracking-service",
+      "name": "Tracking & GPS Microservice",
+      "enabled": true,
+      "bearerOnly": true
+    },
+    {
+      "clientId": "pickup-fleet-service",
+      "name": "Fleet & Dispatch Microservice",
+      "enabled": true,
+      "bearerOnly": true
+    }
+  ],
+  "users": [
+    {
+      "username": "admin",
+      "enabled": true,
+      "email": "admin@logistics.vn",
+      "firstName": "Hệ Thống",
+      "lastName": "Quản Trị Viên",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "ROLE_ADMIN",
+        "ROLE_DISPATCHER"
+      ]
+    },
+    {
+      "username": "courier_hung",
+      "enabled": true,
+      "email": "hung.shipper@logistics.vn",
+      "firstName": "Hùng",
+      "lastName": "Nguyễn (Bưu tá Q1)",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "courier123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "ROLE_COURIER"
+      ]
+    },
+    {
+      "username": "merchant_long",
+      "enabled": true,
+      "email": "long.techstore@shopee.vn",
+      "firstName": "Long",
+      "lastName": "Trần (Chủ Shop)",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "merchant123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "ROLE_MERCHANT"
+      ]
+    },
+    {
+      "username": "customer_linh",
+      "enabled": true,
+      "email": "vanlinh20192019@gmail.com",
+      "firstName": "Linh",
+      "lastName": "Nguyễn",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "customer123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "ROLE_CUSTOMER"
+      ]
+    }
+  ]
+}

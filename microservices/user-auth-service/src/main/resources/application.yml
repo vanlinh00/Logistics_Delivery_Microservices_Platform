@@ -11,22 +11,47 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
   data:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+      timeout: 3000ms
+
+keycloak:
+  enabled: ${KEYCLOAK_ENABLED:true}
+  server-url: ${KEYCLOAK_URL:http://localhost:8180}
+  realm: ${KEYCLOAK_REALM:logistics-realm}
+  client-id: ${KEYCLOAK_CLIENT_ID:logistics-api-gateway}
+  client-secret: ${KEYCLOAK_CLIENT_SECRET:logistics-gateway-secret-2024-enterprise-jwt}
+  issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/logistics-realm}
+  jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8180/realms/logistics-realm/protocol/openid-connect/certs}
+
+jwt:
+  secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+  expiration: 86400000 # 24 hours in ms
+  refresh-expiration: 604800000 # 7 days in ms
 
 eureka:
   client:
     service-url:
       defaultZone: http://${EUREKA_HOST:localhost}:8761/eureka/
 
-jwt:
-  secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
-  expiration: 86400000
-
 management:
   endpoints:
     web:
       exposure:
         include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
