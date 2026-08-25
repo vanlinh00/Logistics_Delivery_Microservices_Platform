@@ -6,7 +6,7 @@
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
     <!-- 1. Permissions Table -->
-    <changeSet id="001-create-permissions-table" author="PhuocVD">
+    <changeSet id="001-create-permissions-table" author="Vanlinh00">
         <preConditions onFail="MARK_RAN">
             <not>
                 <tableExists tableName="permissions"/>
@@ -29,7 +29,7 @@
     </changeSet>
 
     <!-- 2. Roles Table -->
-    <changeSet id="001-create-roles-table" author="PhuocVD">
+    <changeSet id="001-create-roles-table" author="Vanlinh00">
         <preConditions onFail="MARK_RAN">
             <not>
                 <tableExists tableName="roles"/>
@@ -52,7 +52,7 @@
     </changeSet>
 
     <!-- 3. Role Permissions Join Table -->
-    <changeSet id="001-create-role-permissions-table" author="PhuocVD">
+    <changeSet id="001-create-role-permissions-table" author="Vanlinh00">
         <preConditions onFail="MARK_RAN">
             <not>
                 <tableExists tableName="role_permissions"/>
@@ -70,7 +70,7 @@
     </changeSet>
 
     <!-- 4. Users Table -->
-    <changeSet id="001-create-users-table" author="PhuocVD">
+    <changeSet id="001-create-users-table" author="Vanlinh00">
         <preConditions onFail="MARK_RAN">
             <not>
                 <tableExists tableName="users"/>

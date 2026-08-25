@@ -6,7 +6,7 @@
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
     <!-- 1. Load Permissions Data -->
-    <changeSet author="PhuocVD" id="permissions-data">
+    <changeSet author="Vanlinh00" id="permissions-data">
         <loadData
                 encoding="UTF-8"
                 file="db/data/permissions.csv"
@@ -22,7 +22,7 @@
     </changeSet>
 
     <!-- 2. Load Roles Data -->
-    <changeSet author="PhuocVD" id="roles-data">
+    <changeSet author="Vanlinh00" id="roles-data">
         <loadData
                 encoding="UTF-8"
                 file="db/data/roles.csv"
@@ -37,7 +37,7 @@
     </changeSet>
 
     <!-- 3. Load Role-Permissions Mapping Data -->
-    <changeSet author="PhuocVD" id="role-permissions-data">
+    <changeSet author="Vanlinh00" id="role-permissions-data">
         <loadData
                 encoding="UTF-8"
                 file="db/data/role_permissions.csv"
@@ -50,7 +50,7 @@
     </changeSet>
 
     <!-- 4. Load Users Data -->
-    <changeSet author="PhuocVD" id="users-data">
+    <changeSet author="Vanlinh00" id="users-data">
         <loadData
                 encoding="UTF-8"
                 file="db/data/users.csv"
