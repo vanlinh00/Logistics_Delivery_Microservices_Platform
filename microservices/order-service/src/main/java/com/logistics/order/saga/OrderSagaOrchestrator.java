@@ -78,7 +78,7 @@ public class OrderSagaOrchestrator {
             if (event.success()) {
                 // Step 2 Succeeded: Update assigned driver and trigger Payment Reservation
                 order.setAssignedDriverId(event.assignedDriverId());
-                order.setStatus(OrderStatus.PICKUP_SCHEDULED);
+                order.setStatus(OrderStatus.SCHEDULED_FOR_PICKUP);
                 order.setUpdatedAt(LocalDateTime.now());
                 orderRepository.save(order);
 
@@ -114,7 +114,7 @@ public class OrderSagaOrchestrator {
 
             if (event.success()) {
                 // All steps succeeded -> SAGA COMPLETED
-                order.setStatus(OrderStatus.CONFIRMED);
+                order.setStatus(OrderStatus.PAYMENT_CONFIRMED);
                 order.setUpdatedAt(LocalDateTime.now());
                 orderRepository.save(order);
                 log.info("🎉 [SAGA SUCCESS] Order {} fully confirmed and dispatched to courier network!", order.getTrackingNumber());

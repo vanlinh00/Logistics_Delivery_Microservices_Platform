@@ -32,8 +32,8 @@ public class KeycloakJwtAuthenticationConverter implements Converter<Jwt, Abstra
                 extractKeycloakRoles(jwt).stream()
         ).collect(Collectors.toSet());
 
-        String principalClaimName = jwt.hasClaim(JwtClaimNames.PREFERRED_USERNAME)
-                ? JwtClaimNames.PREFERRED_USERNAME
+        String principalClaimName = jwt.hasClaim("preferred_username")
+                ? "preferred_username"
                 : JwtClaimNames.SUB;
 
         return new JwtAuthenticationToken(jwt, authorities, jwt.getClaimAsString(principalClaimName));
