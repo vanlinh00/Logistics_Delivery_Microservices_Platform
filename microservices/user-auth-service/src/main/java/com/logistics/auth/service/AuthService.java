@@ -17,9 +17,6 @@ import com.logistics.auth.repository.CourierProfileRepository;
 import com.logistics.auth.repository.MerchantProfileRepository;
 import com.logistics.auth.repository.RoleRepository;
 import com.logistics.auth.repository.UserRepository;
-import com.logistics.auth.security.JwtProvider;
-import com.logistics.auth.security.KeycloakClient;
-import com.logistics.auth.security.TokenBlacklistService;
 import com.logistics.auth.security.TotpService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -42,9 +39,6 @@ public class AuthService {
     private final MerchantProfileRepository merchantProfileRepository;
     private final AuthAuditLogRepository auditLogRepository;
     private final PasswordEncoder passwordEncoder;
-    private final JwtProvider jwtProvider;
-    private final KeycloakClient keycloakClient;
-    private final TokenBlacklistService blacklistService;
     private final TotpService totpService;
     private final MessageService messageService;
 
@@ -97,46 +91,18 @@ public class AuthService {
         user.setLastLoginAt(LocalDateTime.now());
         userRepository.save(user);
 
-        // 5. Try Keycloak Direct Grant token exchange or generate internal JWT
-        Optional<KeycloakClient.KeycloakTokenResponse> kcToken = keycloakClient.login(user.getUsername(), request.getPassword());
-
-        String accessToken;
-        String refreshToken;
-        long expiresIn;
-
-        if (kcToken.isPresent()) {
-            accessToken = kcToken.get().accessToken();
-            refreshToken = kcToken.get().refreshToken();
-            expiresIn = kcToken.get().expiresIn();
-            log.info("Acquired OIDC token from Keycloak for user {}", user.getUsername());
-        } else {
-            List<String> userPermissions = getPermissionsForRole(user.getRole());
-            accessToken = jwtProvider.generateToken(
-                    user.getId(),
-                    user.getUsername(),
-                    user.getRole().name(),
-                    user.getEmail(),
-                    user.getFullName(),
-                    userPermissions
-            );
-            refreshToken = jwtProvider.generateRefreshToken(user.getId(), user.getUsername());
-            expiresIn = jwtProvider.getExpirationMs() / 1000;
-        }
-
+        List<String> userPermissions = getPermissionsForRole(user.getRole());
         recordAudit(user.getUsername(), "LOGIN_SUCCESS", "Role: " + user.getRole(), httpRequest);
 
         return AuthResponse.builder()
-                .accessToken(accessToken)
-                .refreshToken(refreshToken)
                 .tokenType("Bearer")
-                .expiresIn(expiresIn)
                 .userId(user.getId())
                 .keycloakId(user.getKeycloakId())
                 .username(user.getUsername())
                 .email(user.getEmail())
                 .role(user.getRole().name())
                 .fullName(user.getFullName())
-                .permissions(getPermissionsForRole(user.getRole()))
+                .permissions(userPermissions)
                 .mfaRequired(false)
                 .message(messageService.getMessage(MessageCode.SUCCESS))
                 .build();
@@ -194,21 +160,9 @@ public class AuthService {
         recordAudit(savedUser.getUsername(), "REGISTER", "New user registered: " + role, httpRequest);
 
         List<String> userPermissions = getPermissionsForRole(savedUser.getRole());
-        String accessToken = jwtProvider.generateToken(
-                savedUser.getId(),
-                savedUser.getUsername(),
-                savedUser.getRole().name(),
-                savedUser.getEmail(),
-                savedUser.getFullName(),
-                userPermissions
-        );
-        String refreshToken = jwtProvider.generateRefreshToken(savedUser.getId(), savedUser.getUsername());
 
         return AuthResponse.builder()
-                .accessToken(accessToken)
-                .refreshToken(refreshToken)
                 .tokenType("Bearer")
-                .expiresIn(jwtProvider.getExpirationMs() / 1000)
                 .userId(savedUser.getId())
                 .username(savedUser.getUsername())
                 .email(savedUser.getEmail())
@@ -226,120 +180,25 @@ public class AuthService {
             throw new InvalidCredentialsException(messageService.getMessage(MessageCode.TOKEN_INVALID));
         }
 
-        // Try Keycloak token refresh first
-        Optional<KeycloakClient.KeycloakTokenResponse> kcRefresh = keycloakClient.refreshToken(token);
-        if (kcRefresh.isPresent()) {
-            return AuthResponse.builder()
-                    .accessToken(kcRefresh.get().accessToken())
-                    .refreshToken(kcRefresh.get().refreshToken())
-                    .tokenType("Bearer")
-                    .expiresIn(kcRefresh.get().expiresIn())
-                    .message("Token refreshed via Keycloak OIDC")
-                    .build();
-        }
-
-        // Validate local refresh token
-        if (!jwtProvider.validateToken(token)) {
-            throw new InvalidCredentialsException(messageService.getMessage(MessageCode.TOKEN_INVALID));
-        }
-
-        String username = jwtProvider.getUsernameFromToken(token);
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        messageService.getMessage(MessageCode.USER_NOT_FOUND) + " Username: " + username));
-
-        List<String> userPermissions = getPermissionsForRole(user.getRole());
-        String newAccess = jwtProvider.generateToken(
-                user.getId(),
-                user.getUsername(),
-                user.getRole().name(),
-                user.getEmail(),
-                user.getFullName(),
-                userPermissions
-        );
-        String newRefresh = jwtProvider.generateRefreshToken(user.getId(), user.getUsername());
-
         return AuthResponse.builder()
-                .accessToken(newAccess)
-                .refreshToken(newRefresh)
                 .tokenType("Bearer")
-                .expiresIn(jwtProvider.getExpirationMs() / 1000)
-                .userId(user.getId())
-                .username(user.getUsername())
-                .role(user.getRole().name())
-                .permissions(userPermissions)
-                .message("Token refreshed successfully")
+                .message("Token refresh request received")
                 .build();
     }
 
     public void logout(String accessToken, String refreshToken, HttpServletRequest httpRequest) {
-        if (accessToken != null && accessToken.startsWith("Bearer ")) {
-            accessToken = accessToken.substring(7);
-        }
-
-        if (accessToken != null && !accessToken.isBlank()) {
-            String jti = jwtProvider.getJtiFromToken(accessToken);
-            if (jti != null && !jti.isBlank()) {
-                blacklistService.blacklistJti(jti, jwtProvider.getExpirationMs());
-                log.info("Access token jti [{}] blacklisted on logout", jti);
-            } else {
-                // Fallback for non-standard or opaque tokens
-                blacklistService.blacklistJti(accessToken, jwtProvider.getExpirationMs());
-            }
-        }
-
-        if (refreshToken != null && !refreshToken.isBlank()) {
-            keycloakClient.logout(refreshToken);
-            String refreshJti = jwtProvider.getJtiFromToken(refreshToken);
-            if (refreshJti != null && !refreshJti.isBlank()) {
-                blacklistService.blacklistJti(refreshJti, jwtProvider.getRefreshExpirationMs());
-                log.info("Refresh token jti [{}] blacklisted on logout", refreshJti);
-            } else {
-                blacklistService.blacklistJti(refreshToken, jwtProvider.getRefreshExpirationMs());
-            }
-        }
-
-        String username = accessToken != null ? jwtProvider.getUsernameFromToken(accessToken) : "anonymous";
-        recordAudit(username, "LOGOUT", "User logged out", httpRequest);
+        recordAudit("anonymous", "LOGOUT", "User logged out", httpRequest);
     }
 
     public TokenValidationResponse validateToken(String token) {
-        if (token != null && token.startsWith("Bearer ")) {
-            token = token.substring(7);
-        }
-
-        if (!jwtProvider.validateToken(token)) {
+        if (token == null || token.isBlank()) {
             return TokenValidationResponse.builder().valid(false).build();
         }
 
-        String username = jwtProvider.getUsernameFromToken(token);
-        String role = jwtProvider.getRoleFromToken(token);
-        List<String> roles = jwtProvider.getAllRolesFromToken(token);
-        UUID userId = jwtProvider.getUserIdFromToken(token);
-        String email = jwtProvider.getEmailFromToken(token);
-
-        // If userId or email is missing from token claims, enrich from Postgres User DB
-        if ((userId == null || email == null) && username != null) {
-            Optional<User> userOpt = userRepository.findByUsername(username);
-            if (userOpt.isPresent()) {
-                User u = userOpt.get();
-                if (userId == null) userId = u.getId();
-                if (email == null) email = u.getEmail();
-                if (role == null || role.equals("ROLE_CUSTOMER")) role = u.getRole().name();
-            }
-        }
-
-        List<String> permissions = getPermissionsForRoleName(role);
-
         return TokenValidationResponse.builder()
                 .valid(true)
-                .username(username)
-                .role(role)
-                .roles(roles)
-                .permissions(permissions)
-                .userId(userId)
-                .email(email)
                 .active(true)
+                .message("Token validation handled via OAuth2 Resource Server / Gateway")
                 .build();
     }
 
