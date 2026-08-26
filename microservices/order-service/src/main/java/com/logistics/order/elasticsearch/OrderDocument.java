@@ -28,7 +28,7 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(indexName = "logistics_orders")
+@Document(indexName = "logistics_orders", createIndex = false)
 public class OrderDocument {
 
     @Id
