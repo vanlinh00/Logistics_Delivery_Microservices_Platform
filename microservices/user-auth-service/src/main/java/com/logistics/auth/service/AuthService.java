@@ -1,5 +1,7 @@
 package com.logistics.auth.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.logistics.auth.constant.MessageCode;
 import com.logistics.auth.dto.AuthDTOs.*;
 import com.logistics.auth.exception.AccountInactiveException;
@@ -17,6 +19,8 @@ import com.logistics.auth.repository.CourierProfileRepository;
 import com.logistics.auth.repository.MerchantProfileRepository;
 import com.logistics.auth.repository.RoleRepository;
 import com.logistics.auth.repository.UserRepository;
+import com.logistics.auth.security.KeycloakClient;
+import com.logistics.auth.security.TokenBlacklistService;
 import com.logistics.auth.security.TotpService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -39,8 +43,11 @@ public class AuthService {
     private final MerchantProfileRepository merchantProfileRepository;
     private final AuthAuditLogRepository auditLogRepository;
     private final PasswordEncoder passwordEncoder;
+    private final KeycloakClient keycloakClient;
+    private final TokenBlacklistService blacklistService;
     private final TotpService totpService;
     private final MessageService messageService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Transactional
     public AuthResponse login(LoginRequest request, HttpServletRequest httpRequest) {
@@ -91,11 +98,21 @@ public class AuthService {
         user.setLastLoginAt(LocalDateTime.now());
         userRepository.save(user);
 
+        // 5. Authenticate via Keycloak Direct Grant
+        Optional<KeycloakClient.KeycloakTokenResponse> kcToken = keycloakClient.login(user.getUsername(), request.getPassword());
+
+        String accessToken = kcToken.map(KeycloakClient.KeycloakTokenResponse::accessToken).orElse(null);
+        String refreshToken = kcToken.map(KeycloakClient.KeycloakTokenResponse::refreshToken).orElse(null);
+        long expiresIn = kcToken.map(KeycloakClient.KeycloakTokenResponse::expiresIn).orElse(3600L);
+
         List<String> userPermissions = getPermissionsForRole(user.getRole());
         recordAudit(user.getUsername(), "LOGIN_SUCCESS", "Role: " + user.getRole(), httpRequest);
 
         return AuthResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
                 .tokenType("Bearer")
+                .expiresIn(expiresIn)
                 .userId(user.getId())
                 .keycloakId(user.getKeycloakId())
                 .username(user.getUsername())
@@ -159,10 +176,16 @@ public class AuthService {
 
         recordAudit(savedUser.getUsername(), "REGISTER", "New user registered: " + role, httpRequest);
 
+        // Auto-login via Keycloak if available
+        Optional<KeycloakClient.KeycloakTokenResponse> kcToken = keycloakClient.login(savedUser.getUsername(), request.getPassword());
+
         List<String> userPermissions = getPermissionsForRole(savedUser.getRole());
 
         return AuthResponse.builder()
+                .accessToken(kcToken.map(KeycloakClient.KeycloakTokenResponse::accessToken).orElse(null))
+                .refreshToken(kcToken.map(KeycloakClient.KeycloakTokenResponse::refreshToken).orElse(null))
                 .tokenType("Bearer")
+                .expiresIn(kcToken.map(KeycloakClient.KeycloakTokenResponse::expiresIn).orElse(3600L))
                 .userId(savedUser.getId())
                 .username(savedUser.getUsername())
                 .email(savedUser.getEmail())
@@ -180,14 +203,44 @@ public class AuthService {
             throw new InvalidCredentialsException(messageService.getMessage(MessageCode.TOKEN_INVALID));
         }
 
-        return AuthResponse.builder()
-                .tokenType("Bearer")
-                .message("Token refresh request received")
-                .build();
+        Optional<KeycloakClient.KeycloakTokenResponse> kcRefresh = keycloakClient.refreshToken(token);
+        if (kcRefresh.isPresent()) {
+            return AuthResponse.builder()
+                    .accessToken(kcRefresh.get().accessToken())
+                    .refreshToken(kcRefresh.get().refreshToken())
+                    .tokenType("Bearer")
+                    .expiresIn(kcRefresh.get().expiresIn())
+                    .message("Token refreshed via Keycloak OIDC")
+                    .build();
+        }
+
+        throw new InvalidCredentialsException(messageService.getMessage(MessageCode.TOKEN_INVALID));
     }
 
     public void logout(String accessToken, String refreshToken, HttpServletRequest httpRequest) {
-        recordAudit("anonymous", "LOGOUT", "User logged out", httpRequest);
+        String username = "anonymous";
+
+        if (accessToken != null && accessToken.startsWith("Bearer ")) {
+            accessToken = accessToken.substring(7);
+        }
+
+        if (accessToken != null && !accessToken.isBlank()) {
+            String jti = extractJti(accessToken);
+            if (jti != null) {
+                blacklistService.blacklistJti(jti, 86400000);
+            }
+            username = extractUsername(accessToken);
+        }
+
+        if (refreshToken != null && !refreshToken.isBlank()) {
+            keycloakClient.logout(refreshToken);
+            String refreshJti = extractJti(refreshToken);
+            if (refreshJti != null) {
+                blacklistService.blacklistJti(refreshJti, 604800000);
+            }
+        }
+
+        recordAudit(username != null ? username : "anonymous", "LOGOUT", "User logged out", httpRequest);
     }
 
     public TokenValidationResponse validateToken(String token) {
@@ -195,12 +248,69 @@ public class AuthService {
             return TokenValidationResponse.builder().valid(false).build();
         }
 
+        if (token.startsWith("Bearer ")) {
+            token = token.substring(7);
+        }
+
+        JsonNode payload = parseUnverifiedPayload(token);
+        if (payload == null) {
+            return TokenValidationResponse.builder().valid(false).build();
+        }
+
+        String jti = payload.path("jti").asText(null);
+        if (jti != null && blacklistService.isJtiBlacklisted(jti)) {
+            return TokenValidationResponse.builder().valid(false).message("Token has been revoked").build();
+        }
+
+        long exp = payload.path("exp").asLong(0);
+        if (exp > 0 && exp < System.currentTimeMillis() / 1000) {
+            return TokenValidationResponse.builder().valid(false).message("Token is expired").build();
+        }
+
+        String username = payload.has("preferred_username")
+                ? payload.path("preferred_username").asText()
+                : payload.path("sub").asText(null);
+
+        String role = "ROLE_CUSTOMER";
+        JsonNode realmRoles = payload.path("realm_access").path("roles");
+        if (realmRoles.isArray() && !realmRoles.isEmpty()) {
+            role = realmRoles.get(0).asText();
+        }
+
         return TokenValidationResponse.builder()
                 .valid(true)
                 .active(true)
-                .message("Token validation handled via OAuth2 Resource Server / Gateway")
+                .username(username)
+                .role(role)
+                .email(payload.path("email").asText(null))
+                .message("Token is valid")
                 .build();
     }
+
+    private String extractJti(String token) {
+        JsonNode payload = parseUnverifiedPayload(token);
+        return payload != null ? payload.path("jti").asText(null) : null;
+    }
+
+    private String extractUsername(String token) {
+        JsonNode payload = parseUnverifiedPayload(token);
+        if (payload == null) return null;
+        if (payload.has("preferred_username")) return payload.path("preferred_username").asText();
+        if (payload.has("sub")) return payload.path("sub").asText();
+        return payload.path("email").asText(null);
+    }
+
+    private JsonNode parseUnverifiedPayload(String token) {
+        if (token == null || token.isBlank()) return null;
+        String[] parts = token.split("\\.");
+        if (parts.length < 2) return null;
+        try {
+            return objectMapper.readTree(Base64.getUrlDecoder().decode(parts[1]));
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
 
     @Transactional
     public MfaSetupResponse setupMfa(String username) {
