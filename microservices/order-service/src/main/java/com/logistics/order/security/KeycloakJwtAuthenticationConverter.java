@@ -3,6 +3,7 @@ package com.logistics.order.security;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -18,15 +19,27 @@ import java.util.stream.Stream;
 /**
  * 🛡️ KeycloakJwtAuthenticationConverter:
  * Converts Keycloak JWT Claims (realm_access.roles & resource_access.client.roles)
- * into Spring Security GrantedAuthority instances (e.g. ROLE_ADMIN, ROLE_COURIER, ROLE_MERCHANT).
+ * into Spring Security GrantedAuthority instances (e.g. ROLE_ADMIN, ROLE_COURIER, ROLE_MERCHANT),
+ * and checks Redis token blacklist via TokenBlacklistService.
  */
 @Component
 public class KeycloakJwtAuthenticationConverter implements Converter<Jwt, AbstractAuthenticationToken> {
 
+    private final TokenBlacklistService tokenBlacklistService;
     private final JwtGrantedAuthoritiesConverter defaultAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
+
+    public KeycloakJwtAuthenticationConverter(TokenBlacklistService tokenBlacklistService) {
+        this.tokenBlacklistService = tokenBlacklistService;
+    }
 
     @Override
     public AbstractAuthenticationToken convert(@NonNull Jwt jwt) {
+        // Validate against Redis Token Blacklist via jti
+        String jti = jwt.getId();
+        if (jti != null && tokenBlacklistService.isJtiBlacklisted(jti)) {
+            throw new BadCredentialsException("Token has been revoked");
+        }
+
         Collection<GrantedAuthority> authorities = Stream.concat(
                 defaultAuthoritiesConverter.convert(jwt).stream(),
                 extractKeycloakRoles(jwt).stream()
