@@ -1,7 +1,6 @@
 package com.logistics.order.config;
 
 import com.logistics.order.security.JwtAuthenticationFilter;
-import com.logistics.order.security.KeycloakJwtAuthenticationConverter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,9 +15,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 /**
  * 🛡️ ResourceServerSecurityConfig:
- * Spring Security 6 OAuth2 Resource Server with Keycloak 24+ OIDC integration.
- * Evaluates JWT bearer tokens, maps Keycloak roles (ROLE_ADMIN, ROLE_COURIER, ROLE_MERCHANT),
- * and enforces Method-level Security (@PreAuthorize).
+ * Stateless security configuration using custom JwtAuthenticationFilter
+ * with KeycloakJwtAuthenticationConverter integration.
  */
 @Configuration
 @EnableWebSecurity
@@ -27,7 +25,6 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class ResourceServerSecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
-    private final KeycloakJwtAuthenticationConverter keycloakJwtAuthenticationConverter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -44,12 +41,10 @@ public class ResourceServerSecurityConfig {
                     "/actuator/**"
                 ).permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/orders/calculate-price").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/orders/calculate-tiers-concurrently").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/orders/track/**").permitAll()
                 // All other business endpoints require authenticated JWT
                 .anyRequest().authenticated()
-            )
-            .oauth2ResourceServer(oauth2 -> oauth2
-                .jwt(jwt -> jwt.jwtAuthenticationConverter(keycloakJwtAuthenticationConverter))
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
