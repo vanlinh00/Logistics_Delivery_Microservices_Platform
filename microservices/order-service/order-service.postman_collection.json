@@ -1,0 +1,500 @@
+{
+  "info": {
+    "_postman_id": "order-service-postman-collection-v1",
+    "name": "Order Management Service (Port 8081)",
+    "description": "Comprehensive Postman collection for Order Creation, Multi-threaded Dynamic Pricing Calculation, Tracking, Lifecycle Status Transitions (Distributed Redisson Locks), and Transactional Outbox integration in Logistics Microservices Platform.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "order_service_url",
+      "value": "http://localhost:8081",
+      "type": "string"
+    },
+    {
+      "key": "gateway_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "jwt_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "customer_id",
+      "value": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "type": "string"
+    },
+    {
+      "key": "order_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tracking_number",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "assigned_driver_id",
+      "value": "COURIER-VN-001",
+      "type": "string"
+    },
+    {
+      "key": "current_hub_id",
+      "value": "HUB-TAN-BINH-01",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Pricing & Fee Estimation",
+      "item": [
+        {
+          "name": "1.1. Calculate Single Shipping Price",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"weightKg\": 2.5,\n  \"distanceKm\": 15.0,\n  \"declaredValue\": 500000.00,\n  \"codAmount\": 300000.00,\n  \"expressDelivery\": false\n}"
+            },
+            "url": {
+              "raw": "{{order_service_url}}/api/v1/orders/calculate-price",
+              "host": ["{{order_service_url}}"],
+              "path": ["api", "v1", "orders", "calculate-price"]
+            },
+            "description": "Calculates shipping fee breakdown including base fee, distance surcharge, weight surcharge, insurance fee, and COD collection fee."
+          }
+        },
+        {
+          "name": "1.2. Calculate All Tiers Concurrently (Multi-threaded)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"weightKg\": 5.0,\n  \"distanceKm\": 35.0,\n  \"declaredValue\": 2000000.00,\n  \"codAmount\": 1500000.00,\n  \"expressDelivery\": true\n}"
+            },
+            "url": {
+              "raw": "{{order_service_url}}/api/v1/orders/calculate-tiers-concurrently",
+              "host": ["{{order_service_url}}"],
+              "path": ["api", "v1", "orders", "calculate-tiers-concurrently"]
+            },
+            "description": "Executes parallel multi-threaded price calculations across all available logistics delivery tiers (Standard, Express, Freight, Cold Chain)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Order Creation & Placement",
+      "item": [
+        {
+          "name": "2.1. Create Standard Shipment Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201 || pm.response.code === 200) {",
+                  "    var res = pm.response.json();",
+                  "    var order = res.data || res;",
+                  "    if (order.id) {",
+                  "        pm.collectionVariables.set('order_id', order.id);",
+                  "        console.log('✅ Captured order_id:', order.id);",
+                  "    }",
+                  "    if (order.trackingNumber) {",
+                  "        pm.collectionVariables.set('tracking_number', order.trackingNumber);",
+                  "        console.log('✅ Captured tracking_number:', order.trackingNumber);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"{{customer_id}}\",\n  \"senderName\": \"Nguyen Van Linh\",\n  \"senderPhone\": \"0901234567\",\n  \"senderAddress\": \"123 Nguyen Trai, Phuong Ben Thanh, Quan 1, TP. Ho Chi Minh\",\n  \"senderLatitude\": 10.771663,\n  \"senderLongitude\": 106.691765,\n  \"recipientName\": \"Tran Thi Mai\",\n  \"recipientPhone\": \"0987654321\",\n  \"recipientAddress\": \"456 Le Duan, Phuong Ben Nghe, Quan 1, TP. Ho Chi Minh\",\n  \"recipientLatitude\": 10.782876,\n  \"recipientLongitude\": 106.699882,\n  \"totalWeightKg\": 1.8,\n  \"totalVolumeM3\": 0.005,\n  \"declaredValue\": 450000.00,\n  \"codAmount\": 250000.00,\n  \"specialInstructions\": \"Giao gio hanh chinh, goi truoc khi den.\",\n  \"items\": [\n    {\n      \"itemName\": \"Ao thun thoi trang cotton\",\n      \"quantity\": 2,\n      \"weightKg\": 0.8,\n      \"declaredValue\": 200000.00,\n      \"category\": \"APPAREL\"\n    },\n    {\n      \"itemName\": \"Giay the thao sneaker\",\n      \"quantity\": 1,\n      \"weightKg\": 1.0,\n      \"declaredValue\": 250000.00,\n      \"category\": \"FOOTWEAR\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{order_service_url}}/api/v1/orders",
+              "host": ["{{order_service_url}}"],
+              "path": ["api", "v1", "orders"]
+            },
+            "description": "Creates a new delivery order, calculates pricing breakdown, stores order details, writes to Transactional Outbox, and triggers asynchronous Kafka publication."
+          }
+        },
+        {
+          "name": "2.2. Create High-Value / Fragile COD Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201 || pm.response.code === 200) {",
+                  "    var res = pm.response.json();",
+                  "    var order = res.data || res;",
+                  "    if (order.id) pm.collectionVariables.set('order_id', order.id);",
+                  "    if (order.trackingNumber) pm.collectionVariables.set('tracking_number', order.trackingNumber);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"{{customer_id}}\",\n  \"senderName\": \"The Gioi Cong Nghe Store\",\n  \"senderPhone\": \"0918889999\",\n  \"senderAddress\": \"789 Cach Mang Thang 8, Phuong 5, Quan Tan Binh, TP. Ho Chi Minh\",\n  \"senderLatitude\": 10.790111,\n  \"senderLongitude\": 106.657222,\n  \"recipientName\": \"Le Hoang Nam\",\n  \"recipientPhone\": \"0933445566\",\n  \"recipientAddress\": \"12 Hoang Hoa Tham, Phuong 12, Quan Binh Thanh, TP. Ho Chi Minh\",\n  \"recipientLatitude\": 10.803333,\n  \"recipientLongitude\": 106.691111,\n  \"totalWeightKg\": 2.2,\n  \"totalVolumeM3\": 0.008,\n  \"declaredValue\": 15000000.00,\n  \"codAmount\": 15000000.00,\n  \"specialInstructions\": \"Hang de vo, bao hiem gia tri cao. Yeu cau dong kiem khi nhan hang.\",\n  \"items\": [\n    {\n      \"itemName\": \"Dien thoai thong minh SmartPhone Ultra 5G\",\n      \"quantity\": 1,\n      \"weightKg\": 0.6,\n      \"declaredValue\": 12000000.00,\n      \"category\": \"ELECTRONICS\"\n    },\n    {\n      \"itemName\": \"Tai nghe khong day Bluetooth TWS Pro\",\n      \"quantity\": 1,\n      \"weightKg\": 0.3,\n      \"declaredValue\": 3000000.00,\n      \"category\": \"ELECTRONICS\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{order_service_url}}/api/v1/orders",
+              "host": ["{{order_service_url}}"],
+              "path": ["api", "v1", "orders"]
+            },
+            "description": "Places a high-value COD order with mandatory insurance assessment and parcel inspection instructions."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Order Tracking & Search",
+      "item": [
+        {
+          "name": "3.1. Track Order by Tracking Number",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{order_service_url}}/api/v1/orders/track/{{tracking_number}}",
+              "host": ["{{order_service_url}}"],
+              "path": ["api", "v1", "orders", "track", "{{tracking_number}}"]
+            },
+            "description": "Public lookup endpoint allowing recipients and senders to track order status and route progress."
+          }
+        },
+        {
+          "name": "3.2. Get Customer Order History (Paginated)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{order_service_url}}/api/v1/orders/customer/{{customer_id}}?page=0&size=10&sort=createdAt,desc",
+              "host": ["{{order_service_url}}"],
+              "path": ["api", "v1", "orders", "customer", "{{customer_id}}"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                },
+                {
+                  "key": "sort",
+                  "value": "createdAt,desc"
+                }
+              ]
+            },
+            "description": "Fetches paginated shipment history for a specific authenticated customer."
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Status Lifecycle & Dispatch (Redisson Distributed Lock)",
+      "item": [
+        {
+          "name": "4.1. Update Status: PICKED_UP",
+          "request": {
+            "method": "PUT",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"PICKED_UP\",\n  \"assignedDriverId\": \"{{assigned_driver_id}}\",\n  \"currentHubId\": \"{{current_hub_id}}\",\n  \"reason\": \"Shipper da nhan hang thanh cong tai dia chi nguoi gui\",\n  \"note\": \"Kien hang nguyen ven niem phong\"\n}"
+            },
+            "url": {
+              "raw": "{{order_service_url}}/api/v1/orders/{{order_id}}/status",
+              "host": ["{{order_service_url}}"],
+              "path": ["api", "v1", "orders", "{{order_id}}", "status"]
+            },
+            "description": "Transitions order to PICKED_UP state under distributed lock protection."
+          }
+        },
+        {
+          "name": "4.2. Update Status: IN_TRANSIT (Hub Processing)",
+          "request": {
+            "method": "PUT",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"IN_TRANSIT\",\n  \"assignedDriverId\": \"TRUCK-LINEHAUL-HCM-03\",\n  \"currentHubId\": \"HUB-CENTRAL-HCM-SORTING\",\n  \"reason\": \"Hang da duoc nhap kho trung chuyen va phan loai\",\n  \"note\": \"Dang tren xe trung chuyen den kho giao\"\n}"
+            },
+            "url": {
+              "raw": "{{order_service_url}}/api/v1/orders/{{order_id}}/status",
+              "host": ["{{order_service_url}}"],
+              "path": ["api", "v1", "orders", "{{order_id}}", "status"]
+            },
+            "description": "Updates status to IN_TRANSIT when parcel moves through hubs or line-haul trucks."
+          }
+        },
+        {
+          "name": "4.3. Update Status: DELIVERED",
+          "request": {
+            "method": "PUT",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"DELIVERED\",\n  \"assignedDriverId\": \"{{assigned_driver_id}}\",\n  \"currentHubId\": \"{{current_hub_id}}\",\n  \"reason\": \"Giao hang thanh cong va thu tien COD\",\n  \"note\": \"Nguoi nhan ky xac nhan day du\"\n}"
+            },
+            "url": {
+              "raw": "{{order_service_url}}/api/v1/orders/{{order_id}}/status",
+              "host": ["{{order_service_url}}"],
+              "path": ["api", "v1", "orders", "{{order_id}}", "status"]
+            },
+            "description": "Marks order as successfully DELIVERED and records COD settlement."
+          }
+        },
+        {
+          "name": "4.4. Update Status: CANCELLED",
+          "request": {
+            "method": "PUT",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"CANCELLED\",\n  \"reason\": \"Khach hang yeu cau huy don truoc khi lay hang\",\n  \"note\": \"Da xac nhan voi chu don\"\n}"
+            },
+            "url": {
+              "raw": "{{order_service_url}}/api/v1/orders/{{order_id}}/status",
+              "host": ["{{order_service_url}}"],
+              "path": ["api", "v1", "orders", "{{order_id}}", "status"]
+            },
+            "description": "Cancels delivery order before dispatch."
+          }
+        },
+        {
+          "name": "4.5. Admin Void / Delete Order",
+          "request": {
+            "method": "DELETE",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": {
+              "raw": "{{order_service_url}}/api/v1/orders/{{order_id}}",
+              "host": ["{{order_service_url}}"],
+              "path": ["api", "v1", "orders", "{{order_id}}"]
+            },
+            "description": "Administrative endpoint to void or delete invalid orders."
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Gateway Proxied Requests (Port 8000)",
+      "item": [
+        {
+          "name": "5.1. Via Gateway: Create Order",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"{{customer_id}}\",\n  \"senderName\": \"Nguyen Van Linh\",\n  \"senderPhone\": \"0901234567\",\n  \"senderAddress\": \"123 Nguyen Trai, Quan 1, TP. Ho Chi Minh\",\n  \"recipientName\": \"Tran Thi Mai\",\n  \"recipientPhone\": \"0987654321\",\n  \"recipientAddress\": \"456 Le Duan, Quan 1, TP. Ho Chi Minh\",\n  \"totalWeightKg\": 1.5,\n  \"declaredValue\": 300000.00,\n  \"items\": [\n    {\n      \"itemName\": \"Sach lap trinh Java Spring Boot\",\n      \"quantity\": 1,\n      \"weightKg\": 1.5,\n      \"declaredValue\": 300000.00,\n      \"category\": \"BOOKS\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/orders",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "orders"]
+            },
+            "description": "Routes order creation through the API Gateway (Port 8000)."
+          }
+        },
+        {
+          "name": "5.2. Via Gateway: Track Order",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/orders/track/{{tracking_number}}",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "orders", "track", "{{tracking_number}}"]
+            },
+            "description": "Routes order tracking request via API Gateway."
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Actuator & Observability",
+      "item": [
+        {
+          "name": "6.1. Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{order_service_url}}/actuator/health",
+              "host": ["{{order_service_url}}"],
+              "path": ["actuator", "health"]
+            },
+            "description": "Checks Order Service health status (DB, Redis, Kafka, Elasticsearch connectivity)."
+          }
+        },
+        {
+          "name": "6.2. Service Info & Build Info",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{order_service_url}}/actuator/info",
+              "host": ["{{order_service_url}}"],
+              "path": ["actuator", "info"]
+            },
+            "description": "Returns application version and metadata."
+          }
+        }
+      ]
+    }
+  ]
+}
