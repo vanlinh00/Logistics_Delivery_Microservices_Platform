@@ -34,6 +34,7 @@ public class OrderService {
     private final OrderOutboxRepository outboxRepository;
     private final PricingCalculationService pricingService;
     private final AddressValidationService addressService;
+    private final MessageService messageService;
     private final RedissonClient redissonClient;
     private final ObjectMapper objectMapper;
     private final com.logistics.order.saga.OrderSagaOrchestrator sagaOrchestrator;
@@ -46,12 +47,12 @@ public class OrderService {
         // Validate sender and recipient addresses
         var senderValidation = addressService.validateAddress(request.getSenderAddress(), request.getSenderPhone());
         if (!senderValidation.isValid()) {
-            throw new IllegalArgumentException("Địa chỉ người gửi không hợp lệ: " + senderValidation.getMessage());
+            throw new IllegalArgumentException(messageService.getMessage(MessageCode.SENDER_ADDRESS_INVALID, senderValidation.getMessage()));
         }
 
         var recipientValidation = addressService.validateAddress(request.getRecipientAddress(), request.getRecipientPhone());
         if (!recipientValidation.isValid()) {
-            throw new IllegalArgumentException("Địa chỉ người nhận không hợp lệ: " + recipientValidation.getMessage());
+            throw new IllegalArgumentException(messageService.getMessage(MessageCode.RECIPIENT_ADDRESS_INVALID, recipientValidation.getMessage()));
         }
 
         // Calculate dynamic pricing
@@ -134,17 +135,17 @@ public class OrderService {
         try {
             // Acquire distributed lock for 5s to prevent concurrent state corruption
             if (!lock.tryLock(5, 10, TimeUnit.SECONDS)) {
-                throw new IllegalStateException("Không thể cập nhật trạng thái đơn hàng (Đang có tiến trình xử lý khác)");
+                throw new IllegalStateException(messageService.getMessage(MessageCode.ORDER_LOCK_FAILED));
             }
 
             Order order = orderRepository.findById(orderId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng với ID: " + orderId));
+                    .orElseThrow(() -> new ResourceNotFoundException(messageService.getMessage(MessageCode.ORDER_NOT_FOUND, orderId)));
 
             OrderStatus nextStatus;
             try {
                 nextStatus = OrderStatus.valueOf(request.getStatus().toUpperCase());
             } catch (IllegalArgumentException e) {
-                throw new InvalidStatusTransitionException("Trạng thái đơn hàng không hợp lệ: " + request.getStatus());
+                throw new InvalidStatusTransitionException(messageService.getMessage(MessageCode.INVALID_STATUS_TRANSITION, request.getStatus()));
             }
             order.setStatus(nextStatus);
 
@@ -174,7 +175,7 @@ public class OrderService {
             return updated;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new RuntimeException("Cập nhật đơn hàng bị gián đoạn", e);
+            throw new RuntimeException(messageService.getMessage(MessageCode.ORDER_INTERRUPTED), e);
         } finally {
             if (lock.isHeldByCurrentThread()) {
                 lock.unlock();
@@ -184,7 +185,7 @@ public class OrderService {
 
     public Order getOrderByTrackingNumber(String trackingNumber) {
         return orderRepository.findByTrackingNumber(trackingNumber)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng với mã vận đơn: " + trackingNumber));
+                .orElseThrow(() -> new ResourceNotFoundException(messageService.getMessage(MessageCode.ORDER_NOT_FOUND, trackingNumber)));
     }
 
     public Page<Order> getOrdersByCustomer(UUID customerId, Pageable pageable) {

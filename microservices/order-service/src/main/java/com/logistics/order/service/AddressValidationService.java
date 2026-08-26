@@ -1,14 +1,18 @@
 package com.logistics.order.service;
 
+import com.logistics.order.constant.MessageCode;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.regex.Pattern;
 
 @Service
+@RequiredArgsConstructor
 public class AddressValidationService {
 
+    private final MessageService messageService;
     private static final Pattern PHONE_PATTERN = Pattern.compile("^(0|\\+84)[3|5|7|8|9][0-9]{8}$");
 
     @Getter
@@ -25,14 +29,14 @@ public class AddressValidationService {
         if (address == null || address.trim().length() < 5) {
             return ValidationResult.builder()
                     .valid(false)
-                    .message("Địa chỉ quá ngắn hoặc không hợp lệ (tối thiểu 5 ký tự)")
+                    .message(messageService.getMessage(MessageCode.ADDRESS_TOO_SHORT))
                     .build();
         }
 
         if (phone != null && !PHONE_PATTERN.matcher(phone.replaceAll("\\s+", "")).matches()) {
             return ValidationResult.builder()
                     .valid(false)
-                    .message("Số điện thoại không đúng định dạng chuẩn (10 chữ số VN)")
+                    .message(messageService.getMessage(MessageCode.PHONE_INVALID))
                     .build();
         }
 
@@ -49,7 +53,7 @@ public class AddressValidationService {
 
         return ValidationResult.builder()
                 .valid(true)
-                .message("Địa chỉ và số điện thoại hợp lệ")
+                .message(messageService.getMessage(MessageCode.ADDRESS_VALID))
                 .latitude(lat)
                 .longitude(lon)
                 .formattedAddress(address.trim())

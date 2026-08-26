@@ -58,6 +58,9 @@ class OrderServiceUnitTest {
     private AddressValidationService addressService;
 
     @Mock
+    private MessageService messageService;
+
+    @Mock
     private RedissonClient redissonClient;
 
     @Mock
@@ -168,13 +171,15 @@ class OrderServiceUnitTest {
             when(addressService.validateAddress(any(), any()))
                     .thenReturn(ValidationResult.builder()
                             .valid(false)
-                            .message("Số điện thoại người gửi không đúng định dạng")
+                            .message("Phone number is invalid")
                             .build());
+            when(messageService.getMessage(eq(com.logistics.order.constant.MessageCode.SENDER_ADDRESS_INVALID), any()))
+                    .thenReturn("Sender address is invalid: Phone number is invalid");
 
             // Act & Assert
             assertThatThrownBy(() -> orderService.createOrder(sampleRequest))
                     .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("Địa chỉ người gửi không hợp lệ");
+                    .hasMessageContaining("Sender address is invalid");
 
             verifyNoInteractions(pricingService);
             verifyNoInteractions(orderRepository);
@@ -189,12 +194,14 @@ class OrderServiceUnitTest {
                     .thenReturn(ValidationResult.builder().valid(true).formattedAddress("Valid Address").build());
 
             when(addressService.validateAddress(sampleRequest.getRecipientAddress(), sampleRequest.getRecipientPhone()))
-                    .thenReturn(ValidationResult.builder().valid(false).message("Tòa nhà không tồn tại").build());
+                    .thenReturn(ValidationResult.builder().valid(false).message("Building does not exist").build());
+            when(messageService.getMessage(eq(com.logistics.order.constant.MessageCode.RECIPIENT_ADDRESS_INVALID), any()))
+                    .thenReturn("Recipient address is invalid: Building does not exist");
 
             // Act & Assert
             assertThatThrownBy(() -> orderService.createOrder(sampleRequest))
                     .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("Địa chỉ người nhận không hợp lệ");
+                    .hasMessageContaining("Recipient address is invalid");
 
             verify(orderRepository, never()).save(any());
         }

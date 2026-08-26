@@ -26,9 +26,16 @@ public enum MessageCode {
     TOKEN_INVALID("i.xx.fw.410"),
     VALIDATION_FAILED("i.xx.fw.411"),
     ADDRESS_INVALID("i.xx.fw.418"),
+    SENDER_ADDRESS_INVALID("i.xx.fw.418.sender"),
+    RECIPIENT_ADDRESS_INVALID("i.xx.fw.418.recipient"),
+    ADDRESS_TOO_SHORT("i.xx.fw.418.too_short"),
+    PHONE_INVALID("i.xx.fw.418.phone"),
+    ADDRESS_VALID("i.xx.fw.418.valid"),
+    ORDER_LOCK_FAILED("i.xx.fw.409.lock"),
 
     // 5xx Server Error Codes
-    INTERNAL_SERVER_ERROR("i.xx.fw.500");
+    INTERNAL_SERVER_ERROR("i.xx.fw.500"),
+    ORDER_INTERRUPTED("i.xx.fw.500.interrupted");
 
     private final String code;
 }
