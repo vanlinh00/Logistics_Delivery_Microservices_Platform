@@ -272,9 +272,26 @@ public class AuthService {
                 : payload.path("sub").asText(null);
 
         String role = "ROLE_CUSTOMER";
+        List<String> roles = new ArrayList<>();
         JsonNode realmRoles = payload.path("realm_access").path("roles");
         if (realmRoles.isArray() && !realmRoles.isEmpty()) {
-            role = realmRoles.get(0).asText();
+            realmRoles.forEach(r -> roles.add(r.asText()));
+            role = roles.get(0);
+        }
+
+        UUID userId = null;
+        if (payload.has("userId")) {
+            try {
+                userId = UUID.fromString(payload.path("userId").asText());
+            } catch (Exception ignored) {}
+        }
+
+        List<String> permissions = new ArrayList<>();
+        JsonNode permsNode = payload.path("permissions");
+        if (permsNode.isArray()) {
+            permsNode.forEach(p -> permissions.add(p.asText()));
+        } else {
+            permissions = getPermissionsForRoleName(role);
         }
 
         return TokenValidationResponse.builder()
@@ -282,6 +299,9 @@ public class AuthService {
                 .active(true)
                 .username(username)
                 .role(role)
+                .roles(roles)
+                .permissions(permissions)
+                .userId(userId)
                 .email(payload.path("email").asText(null))
                 .message("Token is valid")
                 .build();
