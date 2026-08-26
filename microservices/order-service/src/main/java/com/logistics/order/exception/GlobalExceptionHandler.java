@@ -1,7 +1,10 @@
 package com.logistics.order.exception;
 
+import com.logistics.order.constant.MessageCode;
 import com.logistics.order.dto.ApiResponse;
+import com.logistics.order.service.MessageService;
 import jakarta.validation.ConstraintViolationException;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,27 +22,30 @@ import java.util.List;
  */
 @RestControllerAdvice
 @Slf4j
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
+
+    private final MessageService messageService;
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handleResourceNotFound(ResourceNotFoundException ex) {
         log.warn("Resource not found: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ApiResponse.error("404", ex.getMessage()));
+                .body(ApiResponse.error(MessageCode.ORDER_NOT_FOUND.getCode(), ex.getMessage()));
     }
 
     @ExceptionHandler(InvalidStatusTransitionException.class)
     public ResponseEntity<ApiResponse<Void>> handleInvalidStatusTransition(InvalidStatusTransitionException ex) {
         log.warn("Invalid order status transition: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error("INVALID_STATUS_TRANSITION", ex.getMessage()));
+                .body(ApiResponse.error(MessageCode.INVALID_STATUS_TRANSITION.getCode(), ex.getMessage()));
     }
 
     @ExceptionHandler(BusinessRuleViolationException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusinessRuleViolation(BusinessRuleViolationException ex) {
         log.warn("Business rule violation: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
-                .body(ApiResponse.error("BUSINESS_RULE_VIOLATION", ex.getMessage()));
+                .body(ApiResponse.error(MessageCode.BUSINESS_RULE_VIOLATION.getCode(), ex.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -50,7 +56,7 @@ public class GlobalExceptionHandler {
         }
         log.warn("DTO validation failed: {}", details);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error("VALIDATION_FAILED", "Request body validation failed", details));
+                .body(ApiResponse.error(MessageCode.VALIDATION_FAILED.getCode(), messageService.getMessage(MessageCode.VALIDATION_FAILED), details));
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
@@ -60,27 +66,27 @@ public class GlobalExceptionHandler {
                 .toList();
         log.warn("Constraint violation: {}", details);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error("CONSTRAINT_VIOLATION", "Constraint validation failed", details));
+                .body(ApiResponse.error(MessageCode.VALIDATION_FAILED.getCode(), messageService.getMessage(MessageCode.VALIDATION_FAILED), details));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiResponse<Void>> handleIllegalArgument(IllegalArgumentException ex) {
         log.warn("Illegal argument: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error("400", ex.getMessage()));
+                .body(ApiResponse.error(MessageCode.BAD_REQUEST.getCode(), ex.getMessage()));
     }
 
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<ApiResponse<Void>> handleIllegalState(IllegalStateException ex) {
         log.warn("Illegal state: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(ApiResponse.error("409", ex.getMessage()));
+                .body(ApiResponse.error(MessageCode.CONFLICT.getCode(), ex.getMessage()));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneralException(Exception ex) {
         log.error("Unhandled internal system error: ", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error("500", "An unexpected internal server error occurred. Please contact support."));
+                .body(ApiResponse.error(MessageCode.INTERNAL_SERVER_ERROR.getCode(), messageService.getMessage(MessageCode.INTERNAL_SERVER_ERROR)));
     }
 }
