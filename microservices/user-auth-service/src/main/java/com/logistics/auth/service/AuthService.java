@@ -289,9 +289,11 @@ public class AuthService {
         List<String> permissions = new ArrayList<>();
         JsonNode permsNode = payload.path("permissions");
         if (permsNode.isArray()) {
-            permsNode.forEach(p -> permissions.add(p.asText()));
+            for (JsonNode p : permsNode) {
+                permissions.add(p.asText());
+            }
         } else {
-            permissions = getPermissionsForRoleName(role);
+            permissions = new ArrayList<>(getPermissionsForRoleName(role));
         }
 
         return TokenValidationResponse.builder()
