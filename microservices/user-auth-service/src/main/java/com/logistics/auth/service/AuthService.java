@@ -110,12 +110,14 @@ public class AuthService {
             expiresIn = kcToken.get().expiresIn();
             log.info("Acquired OIDC token from Keycloak for user {}", user.getUsername());
         } else {
+            List<String> userPermissions = getPermissionsForRole(user.getRole());
             accessToken = jwtProvider.generateToken(
                     user.getId(),
                     user.getUsername(),
                     user.getRole().name(),
                     user.getEmail(),
-                    user.getFullName()
+                    user.getFullName(),
+                    userPermissions
             );
             refreshToken = jwtProvider.generateRefreshToken(user.getId(), user.getUsername());
             expiresIn = jwtProvider.getExpirationMs() / 1000;
@@ -191,12 +193,14 @@ public class AuthService {
 
         recordAudit(savedUser.getUsername(), "REGISTER", "New user registered: " + role, httpRequest);
 
+        List<String> userPermissions = getPermissionsForRole(savedUser.getRole());
         String accessToken = jwtProvider.generateToken(
                 savedUser.getId(),
                 savedUser.getUsername(),
                 savedUser.getRole().name(),
                 savedUser.getEmail(),
-                savedUser.getFullName()
+                savedUser.getFullName(),
+                userPermissions
         );
         String refreshToken = jwtProvider.generateRefreshToken(savedUser.getId(), savedUser.getUsername());
 
@@ -210,7 +214,7 @@ public class AuthService {
                 .email(savedUser.getEmail())
                 .role(savedUser.getRole().name())
                 .fullName(savedUser.getFullName())
-                .permissions(getPermissionsForRole(savedUser.getRole()))
+                .permissions(userPermissions)
                 .message(messageService.getMessage(MessageCode.CREATED))
                 .build();
     }
@@ -244,12 +248,14 @@ public class AuthService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         messageService.getMessage(MessageCode.USER_NOT_FOUND) + " Username: " + username));
 
+        List<String> userPermissions = getPermissionsForRole(user.getRole());
         String newAccess = jwtProvider.generateToken(
                 user.getId(),
                 user.getUsername(),
                 user.getRole().name(),
                 user.getEmail(),
-                user.getFullName()
+                user.getFullName(),
+                userPermissions
         );
         String newRefresh = jwtProvider.generateRefreshToken(user.getId(), user.getUsername());
 
@@ -261,6 +267,7 @@ public class AuthService {
                 .userId(user.getId())
                 .username(user.getUsername())
                 .role(user.getRole().name())
+                .permissions(userPermissions)
                 .message("Token refreshed successfully")
                 .build();
     }
@@ -387,7 +394,7 @@ public class AuthService {
             return Collections.emptyList();
         }
         String standardRole = roleName.startsWith("ROLE_") ? roleName : "ROLE_" + roleName.toUpperCase();
-        return roleRepository.findByCodeWithPermissions(standardRole)
+        List<String> perms = roleRepository.findByCodeWithPermissions(standardRole)
                 .map(role -> role.getPermissions() != null
                         ? role.getPermissions().stream()
                                 .map(Permission::getCode)
@@ -395,6 +402,19 @@ public class AuthService {
                                 .toList()
                         : Collections.<String>emptyList())
                 .orElse(Collections.emptyList());
+
+        if (!perms.isEmpty()) {
+            return perms;
+        }
+
+        String clean = standardRole.startsWith("ROLE_") ? standardRole.substring(5) : standardRole;
+        return switch (clean.toUpperCase()) {
+            case "ADMIN" -> List.of("orders:create", "orders:read", "orders:update", "orders:cancel", "orders:delete", "fleet:view", "fleet:dispatch", "users:read", "users:write", "analytics:view");
+            case "MERCHANT" -> List.of("orders:create", "orders:read", "orders:cancel", "analytics:view");
+            case "COURIER" -> List.of("orders:read", "orders:status:update", "fleet:status:update");
+            case "DISPATCHER" -> List.of("orders:read", "orders:update", "fleet:dispatch", "fleet:view");
+            default -> List.of("orders:create", "orders:read", "orders:cancel");
+        };
     }
 
     public List<String> getPermissionsForRole(User.UserRole role) {

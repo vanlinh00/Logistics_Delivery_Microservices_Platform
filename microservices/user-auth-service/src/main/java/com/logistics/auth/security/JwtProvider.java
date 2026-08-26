@@ -38,6 +38,10 @@ public class JwtProvider {
     }
 
     public String generateToken(UUID userId, String username, String role, String email, String fullName) {
+        return generateToken(userId, username, role, email, fullName, Collections.emptyList());
+    }
+
+    public String generateToken(UUID userId, String username, String role, String email, String fullName, List<String> permissions) {
         String jti = UUID.randomUUID().toString();
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId.toString());
@@ -45,7 +49,28 @@ public class JwtProvider {
         claims.put("roles", List.of(role));
         claims.put("email", email);
         claims.put("name", fullName != null ? fullName : username);
+        claims.put("preferred_username", username);
         claims.put("iss", "logistics-auth-service");
+
+        // Keycloak-compatible Realm-Level Roles: { "realm_access": { "roles": ["ROLE_ADMIN", "ADMIN"] } }
+        String cleanRole = role.startsWith("ROLE_") ? role.substring(5) : role;
+        String prefixedRole = role.startsWith("ROLE_") ? role : "ROLE_" + role;
+        List<String> realmRoles = new ArrayList<>();
+        realmRoles.add(prefixedRole);
+        if (!prefixedRole.equals(cleanRole)) {
+            realmRoles.add(cleanRole);
+        }
+        claims.put("realm_access", Map.of("roles", realmRoles));
+
+        // Keycloak-compatible Client-Level Roles: { "resource_access": { "order-service": { "roles": permissions } } }
+        List<String> perms = permissions != null && !permissions.isEmpty()
+                ? new ArrayList<>(permissions)
+                : getDefaultPermissionsForRole(role);
+        claims.put("permissions", perms);
+        claims.put("resource_access", Map.of(
+                "order-service", Map.of("roles", perms),
+                "account", Map.of("roles", List.of("manage-account", "view-profile"))
+        ));
 
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expirationMs);
@@ -58,6 +83,17 @@ public class JwtProvider {
                 .expiration(expiryDate)
                 .signWith(key)
                 .compact();
+    }
+
+    private List<String> getDefaultPermissionsForRole(String role) {
+        String r = role.startsWith("ROLE_") ? role.substring(5) : role;
+        return switch (r.toUpperCase()) {
+            case "ADMIN" -> List.of("orders:create", "orders:read", "orders:update", "orders:cancel", "orders:delete", "fleet:view", "fleet:dispatch", "users:read", "users:write", "analytics:view");
+            case "MERCHANT" -> List.of("orders:create", "orders:read", "orders:cancel", "analytics:view");
+            case "COURIER" -> List.of("orders:read", "orders:status:update", "fleet:status:update");
+            case "DISPATCHER" -> List.of("orders:read", "orders:update", "fleet:dispatch", "fleet:view");
+            default -> List.of("orders:create", "orders:read", "orders:cancel");
+        };
     }
 
     public String generateRefreshToken(UUID userId, String username) {

@@ -53,7 +53,31 @@ public class KeycloakJwtAuthenticationConverter implements Converter<Jwt, Abstra
             }
         }
 
-        // 2. Extract Client-Level Roles: { "resource_access": { "order-service": { "roles": ["orders:create"] } } }
+        // 2. Extract Direct Roles from user-auth-service (e.g. "roles": ["CUSTOMER"], "role": "CUSTOMER")
+        List<String> directRoles = jwt.getClaimAsStringList("roles");
+        if (directRoles != null) {
+            for (String role : directRoles) {
+                String roleName = role.startsWith("ROLE_") ? role : "ROLE_" + role;
+                grantedAuthorities.add(new SimpleGrantedAuthority(roleName));
+            }
+        } else {
+            String singleRole = jwt.getClaimAsString("role");
+            if (singleRole != null && !singleRole.isBlank()) {
+                String roleName = singleRole.startsWith("ROLE_") ? singleRole : "ROLE_" + singleRole;
+                grantedAuthorities.add(new SimpleGrantedAuthority(roleName));
+            }
+        }
+
+        // 3. Extract authorities if present
+        List<String> directAuthorities = jwt.getClaimAsStringList("authorities");
+        if (directAuthorities != null) {
+            for (String auth : directAuthorities) {
+                String authName = auth.startsWith("ROLE_") ? auth : "ROLE_" + auth;
+                grantedAuthorities.add(new SimpleGrantedAuthority(authName));
+            }
+        }
+
+        // 4. Extract Client-Level Roles: { "resource_access": { "order-service": { "roles": ["orders:create"] } } }
         Map<String, Object> resourceAccess = jwt.getClaimAsMap("resource_access");
         if (resourceAccess != null) {
             resourceAccess.values().forEach(resource -> {
@@ -70,7 +94,7 @@ public class KeycloakJwtAuthenticationConverter implements Converter<Jwt, Abstra
             });
         }
 
-        // 3. Extract Fine-Grained Permissions (e.g. "orders:create", "orders:cancel", "orders:read")
+        // 5. Extract Fine-Grained Permissions (e.g. "orders:create", "orders:cancel", "orders:read")
         List<String> permissions = jwt.getClaimAsStringList("permissions");
         if (permissions != null) {
             permissions.forEach(perm -> grantedAuthorities.add(new SimpleGrantedAuthority(perm)));

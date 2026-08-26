@@ -41,7 +41,6 @@ public class ResourceServerSecurityConfig {
                     "/actuator/**"
                 ).permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/orders/calculate-price").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/v1/orders/calculate-tiers-concurrently").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/orders/track/**").permitAll()
                 // All other business endpoints require authenticated JWT
                 .anyRequest().authenticated()
