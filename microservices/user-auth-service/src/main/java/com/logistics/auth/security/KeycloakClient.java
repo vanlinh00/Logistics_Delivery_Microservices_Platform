@@ -156,6 +156,54 @@ public class KeycloakClient {
         return Optional.empty();
     }
 
+    public void resetUserPassword(String userId, String rawPassword, String adminToken) {
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth(adminToken);
+
+            Map<String, Object> credential = new HashMap<>();
+            credential.put("type", "password");
+            credential.put("value", rawPassword);
+            credential.put("temporary", false);
+
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(credential, headers);
+            String resetPasswordUrl = String.format("%s/admin/realms/%s/users/%s/reset-password", serverUrl, realm, userId);
+            restTemplate.put(resetPasswordUrl, request);
+            log.info("Reset password for Keycloak user ID [{}]", userId);
+        } catch (Exception ex) {
+            log.warn("Failed to reset password for Keycloak user ID [{}]: {}", userId, ex.getMessage());
+        }
+    }
+
+    /**
+     * Generates or retrieves Keycloak tokens for OAuth2 / Social Login users.
+     * Works for both initial sign-up and subsequent logins.
+     */
+    public Optional<KeycloakTokenResponse> generateOAuthUserToken(String username, String email, String fullName, String role) {
+        if (!enabled) {
+            return Optional.empty();
+        }
+
+        Optional<String> adminTokenOpt = getAdminAccessToken();
+        if (adminTokenOpt.isEmpty()) {
+            log.warn("Cannot generate OAuth token for [{}]: unable to obtain Keycloak admin token", username);
+            return Optional.empty();
+        }
+
+        String adminToken = adminTokenOpt.get();
+        String ephemeralPassword = UUID.randomUUID().toString();
+
+        String userId = findUserIdByUsername(username, adminToken).orElse(null);
+        if (userId == null) {
+            userId = createUser(username, email, ephemeralPassword, fullName, role).orElse(null);
+        } else {
+            resetUserPassword(userId, ephemeralPassword, adminToken);
+        }
+
+        return login(username, ephemeralPassword);
+    }
+
     public void assignRealmRole(String userId, String roleName, String adminToken) {
         try {
             HttpHeaders headers = new HttpHeaders();

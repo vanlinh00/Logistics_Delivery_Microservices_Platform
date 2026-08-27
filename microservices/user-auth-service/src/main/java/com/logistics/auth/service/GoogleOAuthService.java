@@ -157,10 +157,14 @@ public class GoogleOAuthService {
             recordAudit(savedUser.getUsername(), "REGISTER_OAUTH2", "Google OAuth user registered: " + savedUser.getRole(), request);
         }
 
-        // Auto-login via Keycloak
-        Optional<KeycloakClient.KeycloakTokenResponse> kcToken = rawPassword != null
-                ? keycloakClient.login(savedUser.getUsername(), rawPassword)
-                : Optional.empty();
+        // Obtain Keycloak Tokens for both new and returning Google OAuth2 users
+        Optional<KeycloakClient.KeycloakTokenResponse> kcToken = keycloakClient.generateOAuthUserToken(
+                savedUser.getUsername(),
+                savedUser.getEmail(),
+                savedUser.getFullName(),
+                savedUser.getRole().name()
+        );
+
         List<String> userPermissions = getPermissionsForRole(savedUser.getRole());
 
         String accessToken = kcToken.map(KeycloakClient.KeycloakTokenResponse::accessToken).orElse("");
