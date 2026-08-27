@@ -1,0 +1,354 @@
+{
+  "info": {
+    "_postman_id": "pickup-fleet-service-postman-collection-v1",
+    "name": "Pickup & Fleet Dispatch Service (Port 8082)",
+    "description": "Comprehensive Postman Collection for Courier Fleet Management, Real-time Driver GPS Dispatching, Multi-threaded Nearest Driver Ranking with Haversine & ETA, and Pickup Task Assignment in the Logistics Platform.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "fleet_service_url",
+      "value": "http://localhost:8082",
+      "type": "string"
+    },
+    {
+      "key": "gateway_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "jwt_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "driver_id",
+      "value": "c1a2b3c4-d5e6-7890-abcd-ef0123456789",
+      "type": "string"
+    },
+    {
+      "key": "task_id",
+      "value": "d1e2f3a4-b5c6-7890-abcd-ef0123456789",
+      "type": "string"
+    },
+    {
+      "key": "hub_id",
+      "value": "HUB-TAN-BINH-01",
+      "type": "string"
+    },
+    {
+      "key": "pickup_lat",
+      "value": "10.7769",
+      "type": "string"
+    },
+    {
+      "key": "pickup_lon",
+      "value": "106.7009",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Driver Management",
+      "item": [
+        {
+          "name": "1.1. List All Drivers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{fleet_service_url}}/api/v1/fleet/drivers",
+              "host": ["{{fleet_service_url}}"],
+              "path": ["api", "v1", "fleet", "drivers"]
+            },
+            "description": "Retrieves all drivers in the fleet across all statuses."
+          }
+        },
+        {
+          "name": "1.2. List Available Drivers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{fleet_service_url}}/api/v1/fleet/drivers?status=AVAILABLE",
+              "host": ["{{fleet_service_url}}"],
+              "path": ["api", "v1", "fleet", "drivers"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "AVAILABLE"
+                }
+              ]
+            },
+            "description": "Filter drivers by status (AVAILABLE, ON_DUTY, BUSY, OFFLINE)."
+          }
+        },
+        {
+          "name": "1.3. Register New Courier Driver",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201 || pm.response.code === 200) {",
+                  "    var res = pm.response.json();",
+                  "    var data = res.data || res;",
+                  "    if (data.id) {",
+                  "        pm.collectionVariables.set('driver_id', data.id);",
+                  "        console.log('Driver ID auto-saved: ' + data.id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"driverCode\": \"DRV-\" + Math.floor(Math.random() * 90000 + 10000),\n  \"fullName\": \"Nguyen Van Courier\",\n  \"phone\": \"+84901234567\",\n  \"vehiclePlate\": \"59-B1 888.99\",\n  \"vehicleType\": \"MOTORBIKE\",\n  \"status\": \"AVAILABLE\",\n  \"currentLatitude\": 10.7769,\n  \"currentLongitude\": 106.7009,\n  \"assignedHubId\": \"HUB-TAN-BINH-01\",\n  \"activeAssignmentsCount\": 0,\n  \"rating\": 5.0\n}"
+            },
+            "url": {
+              "raw": "{{fleet_service_url}}/api/v1/fleet/drivers",
+              "host": ["{{fleet_service_url}}"],
+              "path": ["api", "v1", "fleet", "drivers"]
+            },
+            "description": "Registers a new courier driver into the fleet database."
+          }
+        },
+        {
+          "name": "1.4. Get Driver By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{fleet_service_url}}/api/v1/fleet/drivers/{{driver_id}}",
+              "host": ["{{fleet_service_url}}"],
+              "path": ["api", "v1", "fleet", "drivers", "{{driver_id}}"]
+            },
+            "description": "Fetches single driver details, current GPS coordinates, rating, and vehicle info."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Pickup Tasks & Dispatching",
+      "item": [
+        {
+          "name": "2.1. List All Pickup Tasks",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{fleet_service_url}}/api/v1/fleet/pickups",
+              "host": ["{{fleet_service_url}}"],
+              "path": ["api", "v1", "fleet", "pickups"]
+            },
+            "description": "Retrieves all pickup tasks scheduled or executed by the dispatch system."
+          }
+        },
+        {
+          "name": "2.2. List Pickup Tasks by Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{fleet_service_url}}/api/v1/fleet/pickups?status=PENDING",
+              "host": ["{{fleet_service_url}}"],
+              "path": ["api", "v1", "fleet", "pickups"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "PENDING"
+                }
+              ]
+            },
+            "description": "Filter pickup tasks by status (PENDING, ASSIGNED, EN_ROUTE_TO_PICKUP, ARRIVED_AT_SENDER, PICKED_UP, FAILED)."
+          }
+        },
+        {
+          "name": "2.3. Get Pickup Task By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{fleet_service_url}}/api/v1/fleet/pickups/{{task_id}}",
+              "host": ["{{fleet_service_url}}"],
+              "path": ["api", "v1", "fleet", "pickups", "{{task_id}}"]
+            },
+            "description": "Fetches single pickup task details including sender coordinates and assigned driver."
+          }
+        },
+        {
+          "name": "2.4. Assign Driver to Pickup Task",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{fleet_service_url}}/api/v1/fleet/pickups/{{task_id}}/assign/{{driver_id}}",
+              "host": ["{{fleet_service_url}}"],
+              "path": ["api", "v1", "fleet", "pickups", "{{task_id}}", "assign", "{{driver_id}}"]
+            },
+            "description": "Dispatches a specific courier driver to a pickup task, updates driver status to BUSY, caches driver state in Redis with 24-hour TTL, and publishes Kafka event 'logistics.fleet.pickup-assigned'."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Geospatial & Concurrency Matching",
+      "item": [
+        {
+          "name": "3.1. Auto-Find Nearest Driver",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{fleet_service_url}}/api/v1/fleet/find-nearest-driver?lat={{pickup_lat}}&lon={{pickup_lon}}&vehicleType=MOTORBIKE",
+              "host": ["{{fleet_service_url}}"],
+              "path": ["api", "v1", "fleet", "find-nearest-driver"],
+              "query": [
+                {
+                  "key": "lat",
+                  "value": "{{pickup_lat}}"
+                },
+                {
+                  "key": "lon",
+                  "value": "{{pickup_lon}}"
+                },
+                {
+                  "key": "vehicleType",
+                  "value": "MOTORBIKE"
+                }
+              ]
+            },
+            "description": "Calculates nearest available courier driver for given pickup coordinates using Euclidean distance approximation."
+          }
+        },
+        {
+          "name": "3.2. Multi-Threaded Parallel Driver Ranking (Haversine + ETA)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{fleet_service_url}}/api/v1/fleet/rank-drivers-concurrently?lat={{pickup_lat}}&lon={{pickup_lon}}&vehicleType=MOTORBIKE",
+              "host": ["{{fleet_service_url}}"],
+              "path": ["api", "v1", "fleet", "rank-drivers-concurrently"],
+              "query": [
+                {
+                  "key": "lat",
+                  "value": "{{pickup_lat}}"
+                },
+                {
+                  "key": "lon",
+                  "value": "{{pickup_lon}}"
+                },
+                {
+                  "key": "vehicleType",
+                  "value": "MOTORBIKE"
+                }
+              ]
+            },
+            "description": "Executes high-performance concurrent evaluation across all available drivers using CompletableFuture and async thread pools. Computes precise Haversine distance, speed factor by vehicle type, estimated minutes to arrive, and composite match score."
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Actuator & Monitoring",
+      "item": [
+        {
+          "name": "4.1. Health Check",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{fleet_service_url}}/actuator/health",
+              "host": ["{{fleet_service_url}}"],
+              "path": ["actuator", "health"]
+            },
+            "description": "Checks status of database, Redis, and Kafka connectors."
+          }
+        },
+        {
+          "name": "4.2. Service Info",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{fleet_service_url}}/actuator/info",
+              "host": ["{{fleet_service_url}}"],
+              "path": ["actuator", "info"]
+            },
+            "description": "Returns Spring Boot application build metadata."
+          }
+        },
+        {
+          "name": "4.3. Swagger OpenAPI Docs",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{fleet_service_url}}/v3/api-docs",
+              "host": ["{{fleet_service_url}}"],
+              "path": ["v3", "api-docs"]
+            },
+            "description": "OpenAPI specification for Pickup Fleet Service."
+          }
+        }
+      ]
+    }
+  ]
+}

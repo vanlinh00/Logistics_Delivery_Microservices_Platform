@@ -85,7 +85,7 @@
           }
         },
         {
-          "name": "1.2. Login as Courier (Bưu tá Hùng)",
+          "name": "1.2. Login as Courier (Courier Hung)",
           "event": [
             {
               "listen": "test",

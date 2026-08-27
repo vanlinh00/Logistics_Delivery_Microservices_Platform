@@ -20,10 +20,10 @@ public class AuthDTOs {
     @AllArgsConstructor
     @Builder
     public static class LoginRequest {
-        @NotBlank(message = "Tên đăng nhập hoặc email không được để trống")
+        @NotBlank(message = "Username or email must not be blank")
         private String usernameOrEmail;
 
-        @NotBlank(message = "Mật khẩu không được để trống")
+        @NotBlank(message = "Password must not be blank")
         private String password;
 
         private String mfaCode; // Optional 6-digit TOTP code if MFA enabled
@@ -35,19 +35,19 @@ public class AuthDTOs {
     @AllArgsConstructor
     @Builder
     public static class RegisterRequest {
-        @NotBlank(message = "Tên đăng nhập không được để trống")
-        @Size(min = 3, max = 32, message = "Tên đăng nhập từ 3 đến 32 ký tự")
+        @NotBlank(message = "Username must not be blank")
+        @Size(min = 3, max = 32, message = "Username must be between 3 and 32 characters")
         private String username;
 
-        @NotBlank(message = "Email không được để trống")
-        @Email(message = "Định dạng email không hợp lệ")
+        @NotBlank(message = "Email must not be blank")
+        @Email(message = "Invalid email format")
         private String email;
 
-        @NotBlank(message = "Mật khẩu không được để trống")
-        @Size(min = 6, message = "Mật khẩu tối thiểu 6 ký tự")
+        @NotBlank(message = "Password must not be blank")
+        @Size(min = 6, message = "Password must be at least 6 characters")
         private String password;
 
-        @NotBlank(message = "Họ và tên không được để trống")
+        @NotBlank(message = "Full name must not be blank")
         private String fullName;
 
         private String phone;
@@ -81,7 +81,7 @@ public class AuthDTOs {
     @AllArgsConstructor
     @Builder
     public static class RefreshTokenRequest {
-        @NotBlank(message = "Refresh token không được để trống")
+        @NotBlank(message = "Refresh token must not be blank")
         private String refreshToken;
     }
 
@@ -117,11 +117,11 @@ public class AuthDTOs {
     @AllArgsConstructor
     @Builder
     public static class ChangePasswordRequest {
-        @NotBlank(message = "Mật khẩu cũ không được để trống")
+        @NotBlank(message = "Current password must not be blank")
         private String oldPassword;
 
-        @NotBlank(message = "Mật khẩu mới không được để trống")
-        @Size(min = 6, message = "Mật khẩu mới tối thiểu 6 ký tự")
+        @NotBlank(message = "New password must not be blank")
+        @Size(min = 6, message = "New password must be at least 6 characters")
         private String newPassword;
     }
 
@@ -143,7 +143,7 @@ public class AuthDTOs {
     @AllArgsConstructor
     @Builder
     public static class MfaVerifyRequest {
-        @NotBlank(message = "Mã xác thực TOTP không được để trống")
+        @NotBlank(message = "TOTP authentication code must not be blank")
         private String code;
     }
 
@@ -153,15 +153,15 @@ public class AuthDTOs {
     @AllArgsConstructor
     @Builder
     public static class CourierKycRequest {
-        @NotBlank(message = "Số CCCD / CMND không được để trống")
+        @NotBlank(message = "Citizen ID must not be blank")
         private String citizenId;
 
         private CourierProfile.VehicleType vehicleType;
 
-        @NotBlank(message = "Biển số xe không được để trống")
+        @NotBlank(message = "License plate must not be blank")
         private String licensePlate;
 
-        @NotBlank(message = "Mã Hub điều phối không được để trống")
+        @NotBlank(message = "Assigned Hub ID must not be blank")
         private String assignedHubId;
 
         private Double maxCapacityKg;
@@ -182,12 +182,12 @@ public class AuthDTOs {
     @AllArgsConstructor
     @Builder
     public static class MerchantProfileRequest {
-        @NotBlank(message = "Tên cửa hàng/doanh nghiệp không được để trống")
+        @NotBlank(message = "Shop name must not be blank")
         private String shopName;
 
         private String taxCode;
 
-        @NotBlank(message = "Địa chỉ kho hàng không được để trống")
+        @NotBlank(message = "Warehouse address must not be blank")
         private String warehouseAddress;
 
         private String bankAccount;
