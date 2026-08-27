@@ -13,7 +13,6 @@ import com.logistics.auth.repository.CourierProfileRepository;
 import com.logistics.auth.repository.MerchantProfileRepository;
 import com.logistics.auth.repository.RoleRepository;
 import com.logistics.auth.repository.UserRepository;
-import com.logistics.auth.security.JwtTokenProvider;
 import com.logistics.auth.security.KeycloakClient;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -43,7 +42,6 @@ public class GoogleOAuthService {
     private final CourierProfileRepository courierProfileRepository;
     private final MerchantProfileRepository merchantProfileRepository;
     private final KeycloakClient keycloakClient;
-    private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
     private final AuthAuditLogRepository auditLogRepository;
     private final MessageService messageService;
@@ -139,18 +137,15 @@ public class GoogleOAuthService {
 
         recordAudit(savedUser.getUsername(), "REGISTER_OAUTH2", "Google OAuth user processed: " + savedUser.getRole(), request);
 
-        // Auto-login via Keycloak if available or local JWT
+        // Auto-login via Keycloak
         Optional<KeycloakClient.KeycloakTokenResponse> kcToken = rawPassword != null
                 ? keycloakClient.login(savedUser.getUsername(), rawPassword)
                 : Optional.empty();
         List<String> userPermissions = getPermissionsForRole(savedUser.getRole());
 
-        String accessToken = kcToken.map(KeycloakClient.KeycloakTokenResponse::accessToken)
-                .orElseGet(() -> jwtTokenProvider.generateAccessToken(savedUser, userPermissions));
-        String refreshToken = kcToken.map(KeycloakClient.KeycloakTokenResponse::refreshToken)
-                .orElseGet(() -> jwtTokenProvider.generateRefreshToken(savedUser));
-        long expiresIn = kcToken.map(KeycloakClient.KeycloakTokenResponse::expiresIn)
-                .orElseGet(() -> jwtTokenProvider.getAccessTokenExpirationMs() / 1000);
+        String accessToken = kcToken.map(KeycloakClient.KeycloakTokenResponse::accessToken).orElse("");
+        String refreshToken = kcToken.map(KeycloakClient.KeycloakTokenResponse::refreshToken).orElse("");
+        long expiresIn = kcToken.map(KeycloakClient.KeycloakTokenResponse::expiresIn).orElse(86400L);
 
         return AuthResponse.builder()
                 .accessToken(accessToken)

@@ -19,7 +19,6 @@ import com.logistics.auth.repository.CourierProfileRepository;
 import com.logistics.auth.repository.MerchantProfileRepository;
 import com.logistics.auth.repository.RoleRepository;
 import com.logistics.auth.repository.UserRepository;
-import com.logistics.auth.security.JwtTokenProvider;
 import com.logistics.auth.security.KeycloakClient;
 import com.logistics.auth.security.TokenBlacklistService;
 import com.logistics.auth.security.TotpService;
@@ -45,7 +44,6 @@ public class AuthService {
     private final AuthAuditLogRepository auditLogRepository;
     private final PasswordEncoder passwordEncoder;
     private final KeycloakClient keycloakClient;
-    private final JwtTokenProvider jwtTokenProvider;
     private final TokenBlacklistService blacklistService;
     private final TotpService totpService;
     private final MessageService messageService;
@@ -100,16 +98,13 @@ public class AuthService {
         user.setLastLoginAt(LocalDateTime.now());
         userRepository.save(user);
 
-        // 5. Authenticate via Keycloak Direct Grant or local JWT fallback
+        // 5. Authenticate via Keycloak Direct Grant
         Optional<KeycloakClient.KeycloakTokenResponse> kcToken = keycloakClient.login(user.getUsername(), request.getPassword());
         List<String> userPermissions = getPermissionsForRole(user.getRole());
 
-        String accessToken = kcToken.map(KeycloakClient.KeycloakTokenResponse::accessToken)
-                .orElseGet(() -> jwtTokenProvider.generateAccessToken(user, userPermissions));
-        String refreshToken = kcToken.map(KeycloakClient.KeycloakTokenResponse::refreshToken)
-                .orElseGet(() -> jwtTokenProvider.generateRefreshToken(user));
-        long expiresIn = kcToken.map(KeycloakClient.KeycloakTokenResponse::expiresIn)
-                .orElseGet(() -> jwtTokenProvider.getAccessTokenExpirationMs() / 1000);
+        String accessToken = kcToken.map(KeycloakClient.KeycloakTokenResponse::accessToken).orElse("");
+        String refreshToken = kcToken.map(KeycloakClient.KeycloakTokenResponse::refreshToken).orElse("");
+        long expiresIn = kcToken.map(KeycloakClient.KeycloakTokenResponse::expiresIn).orElse(86400L);
 
         recordAudit(user.getUsername(), "LOGIN_SUCCESS", "Role: " + user.getRole(), httpRequest);
 
@@ -181,16 +176,13 @@ public class AuthService {
 
         recordAudit(savedUser.getUsername(), "REGISTER", "New user registered: " + role, httpRequest);
 
-        // Auto-login via Keycloak if available or local JWT
+        // Auto-login via Keycloak if available
         Optional<KeycloakClient.KeycloakTokenResponse> kcToken = keycloakClient.login(savedUser.getUsername(), request.getPassword());
         List<String> userPermissions = getPermissionsForRole(savedUser.getRole());
 
-        String accessToken = kcToken.map(KeycloakClient.KeycloakTokenResponse::accessToken)
-                .orElseGet(() -> jwtTokenProvider.generateAccessToken(savedUser, userPermissions));
-        String refreshToken = kcToken.map(KeycloakClient.KeycloakTokenResponse::refreshToken)
-                .orElseGet(() -> jwtTokenProvider.generateRefreshToken(savedUser));
-        long expiresIn = kcToken.map(KeycloakClient.KeycloakTokenResponse::expiresIn)
-                .orElseGet(() -> jwtTokenProvider.getAccessTokenExpirationMs() / 1000);
+        String accessToken = kcToken.map(KeycloakClient.KeycloakTokenResponse::accessToken).orElse("");
+        String refreshToken = kcToken.map(KeycloakClient.KeycloakTokenResponse::refreshToken).orElse("");
+        long expiresIn = kcToken.map(KeycloakClient.KeycloakTokenResponse::expiresIn).orElse(86400L);
 
         return AuthResponse.builder()
                 .accessToken(accessToken)

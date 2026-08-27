@@ -5,9 +5,11 @@ import com.logistics.auth.dto.AuthDTOs.AuthResponse;
 import com.logistics.auth.exception.AccountInactiveException;
 import com.logistics.auth.model.User;
 import com.logistics.auth.repository.AuthAuditLogRepository;
+import com.logistics.auth.repository.CourierProfileRepository;
+import com.logistics.auth.repository.MerchantProfileRepository;
 import com.logistics.auth.repository.RoleRepository;
 import com.logistics.auth.repository.UserRepository;
-import com.logistics.auth.security.JwtTokenProvider;
+import com.logistics.auth.security.KeycloakClient;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -19,13 +21,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
@@ -46,9 +46,6 @@ class GoogleOAuthServiceTest {
 
     @Mock
     private KeycloakClient keycloakClient;
-
-    @Mock
-    private JwtTokenProvider jwtTokenProvider;
 
     @Mock
     private PasswordEncoder passwordEncoder;
@@ -87,17 +84,12 @@ class GoogleOAuthServiceTest {
         when(userRepository.findByGoogleId("google-sub-12345")).thenReturn(Optional.of(existingUser));
         when(userRepository.save(any(User.class))).thenReturn(existingUser);
         when(roleRepository.findByCodeWithPermissions("ROLE_CUSTOMER")).thenReturn(Optional.empty());
-        when(jwtTokenProvider.generateAccessToken(any(User.class), anyList())).thenReturn("mock-access-token");
-        when(jwtTokenProvider.generateRefreshToken(any(User.class))).thenReturn("mock-refresh-token");
-        when(jwtTokenProvider.getAccessTokenExpirationMs()).thenReturn(86400000L);
         when(messageService.getMessage(MessageCode.SUCCESS)).thenReturn("Success");
 
         AuthResponse response = googleOAuthService.processGoogleUser(
                 "google-sub-12345", "john.doe@example.com", "John Doe Updated", "http://avatar.url/img.png", request);
 
         assertNotNull(response);
-        assertEquals("mock-access-token", response.getAccessToken());
-        assertEquals("mock-refresh-token", response.getRefreshToken());
         assertEquals("ROLE_CUSTOMER", response.getRole());
         assertEquals("john.doe@example.com", response.getEmail());
 
@@ -122,9 +114,6 @@ class GoogleOAuthServiceTest {
         when(userRepository.findByEmail("jane.smith@example.com")).thenReturn(Optional.of(userWithoutGoogleId));
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(roleRepository.findByCodeWithPermissions("ROLE_CUSTOMER")).thenReturn(Optional.empty());
-        when(jwtTokenProvider.generateAccessToken(any(User.class), anyList())).thenReturn("jwt-access");
-        when(jwtTokenProvider.generateRefreshToken(any(User.class))).thenReturn("jwt-refresh");
-        when(jwtTokenProvider.getAccessTokenExpirationMs()).thenReturn(3600000L);
         when(messageService.getMessage(MessageCode.SUCCESS)).thenReturn("Success");
 
         AuthResponse response = googleOAuthService.processGoogleUser(
@@ -149,9 +138,6 @@ class GoogleOAuthServiceTest {
             return u;
         });
         when(roleRepository.findByCodeWithPermissions("ROLE_CUSTOMER")).thenReturn(Optional.empty());
-        when(jwtTokenProvider.generateAccessToken(any(User.class), anyList())).thenReturn("new-user-access");
-        when(jwtTokenProvider.generateRefreshToken(any(User.class))).thenReturn("new-user-refresh");
-        when(jwtTokenProvider.getAccessTokenExpirationMs()).thenReturn(86400000L);
         when(messageService.getMessage(MessageCode.SUCCESS)).thenReturn("Success");
 
         AuthResponse response = googleOAuthService.processGoogleUser(
@@ -184,9 +170,6 @@ class GoogleOAuthServiceTest {
             return u;
         });
         when(roleRepository.findByCodeWithPermissions("ROLE_CUSTOMER")).thenReturn(Optional.empty());
-        when(jwtTokenProvider.generateAccessToken(any(User.class), anyList())).thenReturn("alex-access");
-        when(jwtTokenProvider.generateRefreshToken(any(User.class))).thenReturn("alex-refresh");
-        when(jwtTokenProvider.getAccessTokenExpirationMs()).thenReturn(86400000L);
         when(messageService.getMessage(MessageCode.SUCCESS)).thenReturn("Success");
 
         AuthResponse response = googleOAuthService.processGoogleUser(
@@ -207,8 +190,6 @@ class GoogleOAuthServiceTest {
 
         assertThrows(AccountInactiveException.class, () ->
                 googleOAuthService.processGoogleUser("google-sub-12345", "john.doe@example.com", "John", null, request));
-
-        verify(jwtTokenProvider, never()).generateAccessToken(any(), any());
     }
 
     @Test
