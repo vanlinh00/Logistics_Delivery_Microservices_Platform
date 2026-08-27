@@ -18,28 +18,32 @@ import java.util.Map;
 @Getter
 public class CustomOAuth2User implements OAuth2User, OidcUser {
 
-    private final GoogleOAuth2UserInfo userInfo;
+    private final GoogleOAuth2UserInfo googleUserInfo;
     private final Collection<? extends GrantedAuthority> authorities;
     private final Map<String, Object> attributes;
     private final OidcIdToken idToken;
     private final OidcUserInfo oidcUserInfo;
 
-    public CustomOAuth2User(GoogleOAuth2UserInfo userInfo,
+    public CustomOAuth2User(GoogleOAuth2UserInfo googleUserInfo,
                             Collection<? extends GrantedAuthority> authorities,
                             Map<String, Object> attributes,
                             OidcIdToken idToken,
                             OidcUserInfo oidcUserInfo) {
-        this.userInfo = userInfo;
+        this.googleUserInfo = googleUserInfo;
         this.authorities = authorities != null ? authorities : Collections.emptyList();
         this.attributes = attributes;
         this.idToken = idToken;
         this.oidcUserInfo = oidcUserInfo;
     }
 
-    public CustomOAuth2User(GoogleOAuth2UserInfo userInfo,
+    public CustomOAuth2User(GoogleOAuth2UserInfo googleUserInfo,
                             Collection<? extends GrantedAuthority> authorities,
                             Map<String, Object> attributes) {
-        this(userInfo, authorities, attributes, null, null);
+        this(googleUserInfo, authorities, attributes, null, null);
+    }
+
+    public GoogleOAuth2UserInfo getGoogleUserInfo() {
+        return googleUserInfo;
     }
 
     @Override
@@ -54,23 +58,23 @@ public class CustomOAuth2User implements OAuth2User, OidcUser {
 
     @Override
     public String getName() {
-        return userInfo.getId() != null ? userInfo.getId() : userInfo.getEmail();
+        return googleUserInfo.getId() != null ? googleUserInfo.getId() : googleUserInfo.getEmail();
     }
 
     public String getEmail() {
-        return userInfo.getEmail();
+        return googleUserInfo.getEmail();
     }
 
     public String getFullName() {
-        return userInfo.getName();
+        return googleUserInfo.getName();
     }
 
     public String getPicture() {
-        return userInfo.getPicture();
+        return googleUserInfo.getPicture();
     }
 
     public String getGoogleId() {
-        return userInfo.getId();
+        return googleUserInfo.getId();
     }
 
     @Override

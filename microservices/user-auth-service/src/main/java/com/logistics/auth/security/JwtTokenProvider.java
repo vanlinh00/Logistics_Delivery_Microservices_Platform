@@ -83,4 +83,36 @@ public class JwtTokenProvider {
                 .parseSignedClaims(token)
                 .getPayload();
     }
+
+    public boolean validateToken(String token) {
+        try {
+            parseClaims(token);
+            return true;
+        } catch (Exception e) {
+            log.error("JWT validation error: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    public String getUsernameFromToken(String token) {
+        return parseClaims(token).getSubject();
+    }
+
+    public UUID getUserIdFromToken(String token) {
+        String userId = parseClaims(token).get("userId", String.class);
+        return userId != null ? UUID.fromString(userId) : null;
+    }
+
+    public String getRoleFromToken(String token) {
+        return parseClaims(token).get("role", String.class);
+    }
+
+    public String getEmailFromToken(String token) {
+        return parseClaims(token).get("email", String.class);
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<String> getPermissionsFromToken(String token) {
+        return parseClaims(token).get("permissions", List.class);
+    }
 }

@@ -41,7 +41,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
             GoogleOAuth2UserInfo userInfo;
 
             if (principal instanceof CustomOAuth2User customOAuth2User) {
-                userInfo = customOAuth2User.getUserInfo();
+                userInfo = customOAuth2User.getGoogleUserInfo();
             } else if (principal instanceof OAuth2User oAuth2User) {
                 userInfo = new GoogleOAuth2UserInfo(oAuth2User.getAttributes());
             } else {

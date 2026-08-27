@@ -17,11 +17,11 @@ class JwtTokenProviderTest {
 
     @BeforeEach
     void setUp() {
-        jwtTokenProvider = new JwtTokenProvider();
-        // 256-bit secret key in base64
-        ReflectionTestUtils.setField(jwtTokenProvider, "jwtSecret", "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970");
-        ReflectionTestUtils.setField(jwtTokenProvider, "jwtExpirationMs", 86400000L);
-        ReflectionTestUtils.setField(jwtTokenProvider, "refreshExpirationMs", 604800000L);
+        jwtTokenProvider = new JwtTokenProvider(
+                "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970",
+                86400000L,
+                604800000L
+        );
     }
 
     @Test
