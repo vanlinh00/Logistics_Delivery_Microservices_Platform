@@ -148,7 +148,7 @@ class GoogleOAuthServiceTest {
         assertEquals("ROLE_CUSTOMER", response.getRole());
 
         ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
-        verify(userRepository).save(userCaptor.capture());
+        verify(userRepository, atLeastOnce()).save(userCaptor.capture());
         User createdUser = userCaptor.getValue();
         assertEquals("google-sub-brand-new", createdUser.getGoogleId());
         assertEquals("newbie", createdUser.getUsername());
@@ -177,7 +177,7 @@ class GoogleOAuthServiceTest {
 
         assertNotNull(response);
         ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
-        verify(userRepository).save(userCaptor.capture());
+        verify(userRepository, atLeastOnce()).save(userCaptor.capture());
         assertEquals("alex_1", userCaptor.getValue().getUsername());
     }
 

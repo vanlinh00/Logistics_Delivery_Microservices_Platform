@@ -50,6 +50,8 @@ keycloak:
   realm: ${KEYCLOAK_REALM:logistics-realm}
   client-id: ${KEYCLOAK_CLIENT_ID:logistics-api-gateway}
   client-secret: ${KEYCLOAK_CLIENT_SECRET:logistics-gateway-secret-2024-enterprise-jwt}
+  admin-username: ${KEYCLOAK_ADMIN:admin}
+  admin-password: ${KEYCLOAK_ADMIN_PASSWORD:admin}
   issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/logistics-realm}
   jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8180/realms/logistics-realm/protocol/openid-connect/certs}
 

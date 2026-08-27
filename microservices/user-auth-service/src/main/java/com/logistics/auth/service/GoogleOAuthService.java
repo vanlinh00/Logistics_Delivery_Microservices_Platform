@@ -110,6 +110,19 @@ public class GoogleOAuthService {
 
             savedUser = userRepository.save(user);
 
+            // Provision user in Keycloak IAM
+            Optional<String> kcUserId = keycloakClient.createUser(
+                    savedUser.getUsername(),
+                    savedUser.getEmail(),
+                    rawPassword,
+                    savedUser.getFullName(),
+                    role.name()
+            );
+            if (kcUserId.isPresent()) {
+                savedUser.setKeycloakId(kcUserId.get());
+                savedUser = userRepository.save(savedUser);
+            }
+
             // Auto-create role-specific profile records
             if (role == User.UserRole.ROLE_COURIER) {
                 CourierProfile courier = CourierProfile.builder()
