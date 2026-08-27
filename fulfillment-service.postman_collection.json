@@ -1,0 +1,264 @@
+{
+  "info": {
+    "_postman_id": "fulfillment-service-postman-collection-v1",
+    "name": "Fulfillment & Hub Transit Service (Port 8083)",
+    "description": "Comprehensive Postman Collection for Proof of Delivery (POD) registration, signature & photo evidence capture, logistics sorting cross-dock checkpoint scanning, linehaul transit tracking, and Kafka event broadcasting.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "fulfillment_service_url",
+      "value": "http://localhost:8083",
+      "type": "string"
+    },
+    {
+      "key": "gateway_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "jwt_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sample_tracking_number",
+      "value": "VN-EXP-2026-984210",
+      "type": "string"
+    },
+    {
+      "key": "source_hub_id",
+      "value": "HUB-HN-CAUGIAY-01",
+      "type": "string"
+    },
+    {
+      "key": "destination_hub_id",
+      "value": "HUB-DN-LIENCHIEU-02",
+      "type": "string"
+    },
+    {
+      "key": "courier_id",
+      "value": "DRV-COURIER-9912",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Hub Transit & Sorting Scans",
+      "item": [
+        {
+          "name": "1.1. Scan Barcode at Origin Cross-Dock (SORTED_AT_ORIGIN)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"trackingNumber\": \"{{sample_tracking_number}}\",\n  \"sourceHubId\": \"{{source_hub_id}}\",\n  \"destinationHubId\": \"{{destination_hub_id}}\",\n  \"vehiclePlate\": \"29C-778.89\",\n  \"containerSealNumber\": \"SEAL-889922\",\n  \"status\": \"SORTED_AT_ORIGIN\",\n  \"operatorId\": \"OP-WAREHOUSE-104\"\n}"
+            },
+            "url": {
+              "raw": "{{fulfillment_service_url}}/api/v1/fulfillment/hub-transit/scan",
+              "host": ["{{fulfillment_service_url}}"],
+              "path": ["api", "v1", "fulfillment", "hub-transit", "scan"]
+            },
+            "description": "Records barcode sorting checkpoint scan at origin hub and publishes 'logistics.fulfillment.hub-scanned' Kafka event."
+          }
+        },
+        {
+          "name": "1.2. Scan Linehaul Loading (LOADED_ON_TRUCK)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"trackingNumber\": \"{{sample_tracking_number}}\",\n  \"sourceHubId\": \"{{source_hub_id}}\",\n  \"destinationHubId\": \"{{destination_hub_id}}\",\n  \"vehiclePlate\": \"29C-778.89\",\n  \"containerSealNumber\": \"SEAL-889922\",\n  \"status\": \"LOADED_ON_TRUCK\",\n  \"operatorId\": \"OP-WAREHOUSE-104\"\n}"
+            },
+            "url": {
+              "raw": "{{fulfillment_service_url}}/api/v1/fulfillment/hub-transit/scan",
+              "host": ["{{fulfillment_service_url}}"],
+              "path": ["api", "v1", "fulfillment", "hub-transit", "scan"]
+            },
+            "description": "Records linehaul truck departure scanning."
+          }
+        },
+        {
+          "name": "1.3. Scan Destination Arrival (ARRIVED_AT_DESTINATION_HUB)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"trackingNumber\": \"{{sample_tracking_number}}\",\n  \"sourceHubId\": \"{{source_hub_id}}\",\n  \"destinationHubId\": \"{{destination_hub_id}}\",\n  \"vehiclePlate\": \"29C-778.89\",\n  \"containerSealNumber\": \"SEAL-889922\",\n  \"status\": \"ARRIVED_AT_DESTINATION_HUB\",\n  \"operatorId\": \"OP-DEST-552\"\n}"
+            },
+            "url": {
+              "raw": "{{fulfillment_service_url}}/api/v1/fulfillment/hub-transit/scan",
+              "host": ["{{fulfillment_service_url}}"],
+              "path": ["api", "v1", "fulfillment", "hub-transit", "scan"]
+            },
+            "description": "Records truck arrival and unloading at destination regional hub."
+          }
+        },
+        {
+          "name": "1.4. Get Hub Transit History Scans",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{fulfillment_service_url}}/api/v1/fulfillment/hub-transit/{{sample_tracking_number}}",
+              "host": ["{{fulfillment_service_url}}"],
+              "path": ["api", "v1", "fulfillment", "hub-transit", "{{sample_tracking_number}}"]
+            },
+            "description": "Returns complete chronological list of warehouse sorting and hub scans."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Proof of Delivery (POD)",
+      "item": [
+        {
+          "name": "2.1. Submit Proof of Delivery (Successful Delivery)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"trackingNumber\": \"{{sample_tracking_number}}\",\n  \"recipientSignedName\": \"Alice Johnson\",\n  \"recipientPhone\": \"+1-555-0199\",\n  \"signatureDataUri\": \"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==\",\n  \"photoEvidenceUrl\": \"https://storage.example.com/photos/parcel_delivered_984210.jpg\",\n  \"deliveryLatitude\": 21.0285,\n  \"deliveryLongitude\": 105.8542,\n  \"courierId\": \"{{courier_id}}\",\n  \"courierNotes\": \"Package handed directly to recipient with signature confirmation.\",\n  \"result\": \"SUCCESS\"\n}"
+            },
+            "url": {
+              "raw": "{{fulfillment_service_url}}/api/v1/fulfillment/pod",
+              "host": ["{{fulfillment_service_url}}"],
+              "path": ["api", "v1", "fulfillment", "pod"]
+            },
+            "description": "Submits recipient digital signature, photo attachment, and broadcasts 'logistics.fulfillment.delivered' Kafka event."
+          }
+        },
+        {
+          "name": "2.2. Submit Failed Delivery Attempt",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"trackingNumber\": \"{{sample_tracking_number}}\",\n  \"recipientSignedName\": \"N/A - Recipient Unavailable\",\n  \"recipientPhone\": \"+1-555-0199\",\n  \"photoEvidenceUrl\": \"https://storage.example.com/photos/attempt_failed_doorstep.jpg\",\n  \"deliveryLatitude\": 21.0285,\n  \"deliveryLongitude\": 105.8542,\n  \"courierId\": \"{{courier_id}}\",\n  \"courierNotes\": \"Recipient not home, phone unreachable. Rescheduled next attempt.\",\n  \"result\": \"FAILED_ATTEMPT\"\n}"
+            },
+            "url": {
+              "raw": "{{fulfillment_service_url}}/api/v1/fulfillment/pod",
+              "host": ["{{fulfillment_service_url}}"],
+              "path": ["api", "v1", "fulfillment", "pod"]
+            },
+            "description": "Records failed delivery attempt and publishes 'logistics.fulfillment.failed' Kafka event."
+          }
+        },
+        {
+          "name": "2.3. Get POD Details by Tracking Number",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{fulfillment_service_url}}/api/v1/fulfillment/pod/{{sample_tracking_number}}",
+              "host": ["{{fulfillment_service_url}}"],
+              "path": ["api", "v1", "fulfillment", "pod", "{{sample_tracking_number}}"]
+            },
+            "description": "Retrieves POD certificate, signature data URI, photo URL, delivery coordinates, and timestamp."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Actuator & Monitoring",
+      "item": [
+        {
+          "name": "3.1. Health Check",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{fulfillment_service_url}}/actuator/health",
+              "host": ["{{fulfillment_service_url}}"],
+              "path": ["actuator", "health"]
+            },
+            "description": "Checks status of database, Redis, and Kafka connectors."
+          }
+        },
+        {
+          "name": "3.2. Service Info",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{fulfillment_service_url}}/actuator/info",
+              "host": ["{{fulfillment_service_url}}"],
+              "path": ["actuator", "info"]
+            },
+            "description": "Returns Spring Boot application build metadata."
+          }
+        },
+        {
+          "name": "3.3. Swagger OpenAPI Docs",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{fulfillment_service_url}}/v3/api-docs",
+              "host": ["{{fulfillment_service_url}}"],
+              "path": ["v3", "api-docs"]
+            },
+            "description": "OpenAPI specification for Fulfillment Service."
+          }
+        }
+      ]
+    }
+  ]
+}

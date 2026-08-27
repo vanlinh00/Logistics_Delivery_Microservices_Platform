@@ -557,7 +557,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"trackingNumber\": \"{{sample_tracking_number}}\",\n  \"recipientSignedName\": \"Nguyễn Thị Mai\",\n  \"signatureImageUrl\": \"https://storage.example.com/signatures/pod_984210.png\",\n  \"photoDeliveryUrl\": \"https://storage.example.com/photos/parcel_delivered_984210.jpg\",\n  \"codCollectedAmount\": 350000,\n  \"driverId\": \"{{sample_driver_id}}\",\n  \"notes\": \"Khách hàng đã nhận đủ và ký nhận\"\n}"
+              "raw": "{\n  \"trackingNumber\": \"{{sample_tracking_number}}\",\n  \"recipientSignedName\": \"Alice Johnson\",\n  \"signatureImageUrl\": \"https://storage.example.com/signatures/pod_984210.png\",\n  \"photoDeliveryUrl\": \"https://storage.example.com/photos/parcel_delivered_984210.jpg\",\n  \"codCollectedAmount\": 350000,\n  \"driverId\": \"{{sample_driver_id}}\",\n  \"notes\": \"Customer received package and signed POD\"\n}"
             },
             "url": {
               "raw": "{{gateway_url}}/api/v1/fulfillment/pod",

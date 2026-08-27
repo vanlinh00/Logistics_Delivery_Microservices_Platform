@@ -1,12 +1,16 @@
 package com.logistics.fulfillment.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.logistics.fulfillment.constant.MessageCode;
 import lombok.*;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Standard Generic API Response Wrapper for Fulfillment Service.
+ */
 @Getter
 @Setter
 @Builder
@@ -26,7 +30,18 @@ public class ApiResponse<T> {
     public static <T> ApiResponse<T> ok(T data, String message) {
         return ApiResponse.<T>builder()
                 .success(true)
-                .code("200")
+                .code(MessageCode.SUCCESS.getCode())
+                .message(message)
+                .data(data)
+                .details(Collections.emptyList())
+                .timestamp(LocalDateTime.now())
+                .build();
+    }
+
+    public static <T> ApiResponse<T> ok(T data, MessageCode messageCode, String message) {
+        return ApiResponse.<T>builder()
+                .success(true)
+                .code(messageCode.getCode())
                 .message(message)
                 .data(data)
                 .details(Collections.emptyList())
@@ -35,18 +50,33 @@ public class ApiResponse<T> {
     }
 
     public static <T> ApiResponse<T> ok(T data) {
-        return ok(data, "Success");
+        return ok(data, "Success!");
     }
 
     public static <T> ApiResponse<T> created(T data, String message) {
         return ApiResponse.<T>builder()
                 .success(true)
-                .code("201")
+                .code(MessageCode.CREATED.getCode())
                 .message(message)
                 .data(data)
                 .details(Collections.emptyList())
                 .timestamp(LocalDateTime.now())
                 .build();
+    }
+
+    public static <T> ApiResponse<T> error(MessageCode messageCode, String message, List<String> details) {
+        return ApiResponse.<T>builder()
+                .success(false)
+                .code(messageCode.getCode())
+                .message(message)
+                .data(null)
+                .details(details != null ? details : Collections.emptyList())
+                .timestamp(LocalDateTime.now())
+                .build();
+    }
+
+    public static <T> ApiResponse<T> error(MessageCode messageCode, String message) {
+        return error(messageCode, message, Collections.emptyList());
     }
 
     public static <T> ApiResponse<T> error(String code, String message, List<String> details) {
