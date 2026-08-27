@@ -1,6 +1,7 @@
 package com.logistics.fleet.saga;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.logistics.fleet.constant.KafkaTopic;
 import com.logistics.fleet.model.Driver;
 import com.logistics.fleet.model.PickupTask;
 import com.logistics.fleet.repository.DriverRepository;
@@ -31,9 +32,7 @@ public class FleetSagaParticipant {
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
 
-    private static final String TOPIC_FLEET_RESULTS = "logistics.fleet.pickup-results";
-
-    @KafkaListener(topics = "logistics.fleet.commands", groupId = "fleet-saga-group")
+    @KafkaListener(topics = KafkaTopic.FLEET_COMMANDS, groupId = "fleet-saga-group")
     @Transactional
     public void handleFleetCommand(String message) {
         try {
@@ -117,7 +116,7 @@ public class FleetSagaParticipant {
                     "assignedDriverId", driverId != null ? driverId : "",
                     "failureReason", error != null ? error : ""
             );
-            kafkaTemplate.send(TOPIC_FLEET_RESULTS, orderId.toString(), objectMapper.writeValueAsString(result));
+            kafkaTemplate.send(KafkaTopic.FLEET_PICKUP_RESULTS, orderId.toString(), objectMapper.writeValueAsString(result));
         } catch (Exception e) {
             log.error("Failed to publish fleet saga result: {}", e.getMessage());
         }
