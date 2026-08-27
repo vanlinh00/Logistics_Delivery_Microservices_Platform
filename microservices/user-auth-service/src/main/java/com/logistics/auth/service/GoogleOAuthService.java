@@ -4,12 +4,17 @@ import com.logistics.auth.constant.MessageCode;
 import com.logistics.auth.dto.AuthDTOs.AuthResponse;
 import com.logistics.auth.exception.AccountInactiveException;
 import com.logistics.auth.model.AuthAuditLog;
+import com.logistics.auth.model.CourierProfile;
+import com.logistics.auth.model.MerchantProfile;
 import com.logistics.auth.model.Permission;
 import com.logistics.auth.model.User;
 import com.logistics.auth.repository.AuthAuditLogRepository;
+import com.logistics.auth.repository.CourierProfileRepository;
+import com.logistics.auth.repository.MerchantProfileRepository;
 import com.logistics.auth.repository.RoleRepository;
 import com.logistics.auth.repository.UserRepository;
 import com.logistics.auth.security.JwtTokenProvider;
+import com.logistics.auth.security.KeycloakClient;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +40,9 @@ public class GoogleOAuthService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final CourierProfileRepository courierProfileRepository;
+    private final MerchantProfileRepository merchantProfileRepository;
+    private final KeycloakClient keycloakClient;
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
     private final AuthAuditLogRepository auditLogRepository;
@@ -55,74 +63,106 @@ public class GoogleOAuthService {
                 ? userRepository.findByGoogleId(googleSub).or(() -> userRepository.findByEmail(normalizedEmail))
                 : userRepository.findByEmail(normalizedEmail);
 
-        User user;
+        User savedUser;
+        String rawPassword = null;
         if (existingUserOpt.isPresent()) {
-            user = existingUserOpt.get();
+            savedUser = existingUserOpt.get();
 
-            if (!Boolean.TRUE.equals(user.getActive())) {
-                recordAudit(user.getUsername(), "OAUTH2_LOGIN_FAILED", "Account deactivated: " + normalizedEmail, request);
+            if (!Boolean.TRUE.equals(savedUser.getActive())) {
+                recordAudit(savedUser.getUsername(), "OAUTH2_LOGIN_FAILED", "Account deactivated: " + normalizedEmail, request);
                 throw new AccountInactiveException(messageService.getMessage(MessageCode.ACCOUNT_INACTIVE));
             }
 
             // Link Google ID if missing
-            if (googleSub != null && !googleSub.isBlank() && (user.getGoogleId() == null || !user.getGoogleId().equals(googleSub))) {
-                user.setGoogleId(googleSub);
+            if (googleSub != null && !googleSub.isBlank() && (savedUser.getGoogleId() == null || !savedUser.getGoogleId().equals(googleSub))) {
+                savedUser.setGoogleId(googleSub);
             }
 
             // Update profile information if not set
-            if ((user.getFullName() == null || user.getFullName().isBlank()) && fullName != null && !fullName.isBlank()) {
-                user.setFullName(fullName);
+            if ((savedUser.getFullName() == null || savedUser.getFullName().isBlank()) && fullName != null && !fullName.isBlank()) {
+                savedUser.setFullName(fullName);
             }
-            if ((user.getAvatarUrl() == null || user.getAvatarUrl().isBlank()) && pictureUrl != null && !pictureUrl.isBlank()) {
-                user.setAvatarUrl(pictureUrl);
+            if ((savedUser.getAvatarUrl() == null || savedUser.getAvatarUrl().isBlank()) && pictureUrl != null && !pictureUrl.isBlank()) {
+                savedUser.setAvatarUrl(pictureUrl);
             }
 
-            user.setLastLoginAt(LocalDateTime.now());
-            user = userRepository.save(user);
-            log.info("Updated existing user {} with Google OAuth info", user.getUsername());
+            savedUser.setLastLoginAt(LocalDateTime.now());
+            savedUser = userRepository.save(savedUser);
+            log.info("Updated existing user {} with Google OAuth info", savedUser.getUsername());
         } else {
             // 2. Create new user with ROLE_CUSTOMER
             String baseUsername = generateBaseUsername(normalizedEmail);
             String uniqueUsername = generateUniqueUsername(baseUsername);
+            rawPassword = UUID.randomUUID().toString();
 
-            user = User.builder()
+            User.UserRole role = User.UserRole.ROLE_CUSTOMER;
+
+            User user = User.builder()
                     .googleId(googleSub)
                     .username(uniqueUsername)
                     .email(normalizedEmail)
-                    .passwordHash(passwordEncoder.encode(UUID.randomUUID().toString()))
+                    .passwordHash(passwordEncoder.encode(rawPassword))
                     .fullName(fullName != null && !fullName.isBlank() ? fullName : uniqueUsername)
                     .avatarUrl(pictureUrl)
-                    .role(User.UserRole.ROLE_CUSTOMER)
+                    .role(role)
                     .active(true)
                     .mfaEnabled(false)
                     .lastLoginAt(LocalDateTime.now())
                     .build();
 
-            user = userRepository.save(user);
-            log.info("Created new user {} via Google OAuth2 with ROLE_CUSTOMER", user.getUsername());
+            savedUser = userRepository.save(user);
+
+            // Auto-create role-specific profile records
+            if (role == User.UserRole.ROLE_COURIER) {
+                CourierProfile courier = CourierProfile.builder()
+                        .user(savedUser)
+                        .vehicleType(CourierProfile.VehicleType.MOTORBIKE)
+                        .kycStatus(CourierProfile.KycStatus.PENDING)
+                        .isOnline(false)
+                        .rating(5.0)
+                        .totalDeliveries(0)
+                        .assignedHubId("HUB-DEFAULT-01")
+                        .build();
+                courierProfileRepository.save(courier);
+            } else if (role == User.UserRole.ROLE_MERCHANT) {
+                MerchantProfile merchant = MerchantProfile.builder()
+                        .user(savedUser)
+                        .shopName(savedUser.getFullName() != null ? savedUser.getFullName() + " Shop" : "My Shop")
+                        .codTier(MerchantProfile.CodTier.STANDARD)
+                        .discountRate(0.05)
+                        .build();
+                merchantProfileRepository.save(merchant);
+            }
+
+            log.info("Created new user {} via Google OAuth2 with ROLE_CUSTOMER", savedUser.getUsername());
         }
 
-        // 3. Permissions & Token Generation
-        List<String> permissions = getPermissionsForRole(user.getRole());
-        String accessToken = jwtTokenProvider.generateAccessToken(user, permissions);
-        String refreshToken = jwtTokenProvider.generateRefreshToken(user);
-        long expiresIn = jwtTokenProvider.getAccessTokenExpirationMs() / 1000;
+        recordAudit(savedUser.getUsername(), "REGISTER_OAUTH2", "Google OAuth user processed: " + savedUser.getRole(), request);
 
-        recordAudit(user.getUsername(), "OAUTH2_LOGIN_SUCCESS", "Google login successful for " + normalizedEmail, request);
+        // Auto-login via Keycloak if available or local JWT
+        Optional<KeycloakClient.KeycloakTokenResponse> kcToken = rawPassword != null
+                ? keycloakClient.login(savedUser.getUsername(), rawPassword)
+                : Optional.empty();
+        List<String> userPermissions = getPermissionsForRole(savedUser.getRole());
+
+        String accessToken = kcToken.map(KeycloakClient.KeycloakTokenResponse::accessToken)
+                .orElseGet(() -> jwtTokenProvider.generateAccessToken(savedUser, userPermissions));
+        String refreshToken = kcToken.map(KeycloakClient.KeycloakTokenResponse::refreshToken)
+                .orElseGet(() -> jwtTokenProvider.generateRefreshToken(savedUser));
+        long expiresIn = kcToken.map(KeycloakClient.KeycloakTokenResponse::expiresIn)
+                .orElseGet(() -> jwtTokenProvider.getAccessTokenExpirationMs() / 1000);
 
         return AuthResponse.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .tokenType("Bearer")
                 .expiresIn(expiresIn)
-                .userId(user.getId())
-                .keycloakId(user.getKeycloakId())
-                .username(user.getUsername())
-                .email(user.getEmail())
-                .role(user.getRole().name())
-                .fullName(user.getFullName())
-                .permissions(permissions)
-                .mfaRequired(false)
+                .userId(savedUser.getId())
+                .username(savedUser.getUsername())
+                .email(savedUser.getEmail())
+                .role(savedUser.getRole().name())
+                .fullName(savedUser.getFullName())
+                .permissions(userPermissions)
                 .message(messageService.getMessage(MessageCode.SUCCESS))
                 .build();
     }

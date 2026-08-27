@@ -39,6 +39,15 @@ class GoogleOAuthServiceTest {
     private RoleRepository roleRepository;
 
     @Mock
+    private CourierProfileRepository courierProfileRepository;
+
+    @Mock
+    private MerchantProfileRepository merchantProfileRepository;
+
+    @Mock
+    private KeycloakClient keycloakClient;
+
+    @Mock
     private JwtTokenProvider jwtTokenProvider;
 
     @Mock
