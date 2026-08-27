@@ -86,7 +86,8 @@ public class GoogleOAuthService {
 
             savedUser.setLastLoginAt(LocalDateTime.now());
             savedUser = userRepository.save(savedUser);
-            log.info("Updated existing user {} with Google OAuth info", savedUser.getUsername());
+            log.info("Updated existing user [{}] with Google OAuth info", savedUser.getUsername());
+            recordAudit(savedUser.getUsername(), "LOGIN_OAUTH2_SUCCESS", "Google OAuth user logged in", request);
         } else {
             // 2. Create new user with ROLE_CUSTOMER
             String baseUsername = generateBaseUsername(normalizedEmail);
@@ -110,20 +111,27 @@ public class GoogleOAuthService {
 
             savedUser = userRepository.save(user);
 
-            // Provision user in Keycloak IAM
-            Optional<String> kcUserId = keycloakClient.createUser(
-                    savedUser.getUsername(),
-                    savedUser.getEmail(),
-                    rawPassword,
-                    savedUser.getFullName(),
-                    role.name()
-            );
-            if (kcUserId.isPresent()) {
-                savedUser.setKeycloakId(kcUserId.get());
-                savedUser = userRepository.save(savedUser);
+            // 3. Provision user inside Keycloak IAM & assign realm role
+            try {
+                Optional<String> kcUserId = keycloakClient.createUser(
+                        savedUser.getUsername(),
+                        savedUser.getEmail(),
+                        rawPassword,
+                        savedUser.getFullName(),
+                        role.name()
+                );
+                if (kcUserId.isPresent()) {
+                    savedUser.setKeycloakId(kcUserId.get());
+                    savedUser = userRepository.save(savedUser);
+                    log.info("Successfully synced user [{}] to Keycloak ID [{}]", savedUser.getUsername(), kcUserId.get());
+                } else {
+                    log.warn("Keycloak user creation returned empty ID for [{}]", savedUser.getUsername());
+                }
+            } catch (Exception ex) {
+                log.error("Failed to provision user [{}] in Keycloak: {}", savedUser.getUsername(), ex.getMessage());
             }
 
-            // Auto-create role-specific profile records
+            // 4. Auto-create role-specific profile records
             if (role == User.UserRole.ROLE_COURIER) {
                 CourierProfile courier = CourierProfile.builder()
                         .user(savedUser)
@@ -145,10 +153,9 @@ public class GoogleOAuthService {
                 merchantProfileRepository.save(merchant);
             }
 
-            log.info("Created new user {} via Google OAuth2 with ROLE_CUSTOMER", savedUser.getUsername());
+            log.info("Created new user [{}] via Google OAuth2 with role [{}]", savedUser.getUsername(), role);
+            recordAudit(savedUser.getUsername(), "REGISTER_OAUTH2", "Google OAuth user registered: " + savedUser.getRole(), request);
         }
-
-        recordAudit(savedUser.getUsername(), "REGISTER_OAUTH2", "Google OAuth user processed: " + savedUser.getRole(), request);
 
         // Auto-login via Keycloak
         Optional<KeycloakClient.KeycloakTokenResponse> kcToken = rawPassword != null
