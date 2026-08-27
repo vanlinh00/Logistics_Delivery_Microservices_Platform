@@ -7,5 +7,6 @@
 
     <include file="db/changelog/changes/001-create-schema.xml"/>
     <include file="db/changelog/changes/002-load-initial-data.xml"/>
+    <include file="db/changelog/changes/003-add-google-id-to-users.xml"/>
 
 </databaseChangeLog>

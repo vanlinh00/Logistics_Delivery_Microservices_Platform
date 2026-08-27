@@ -13,7 +13,8 @@ import java.util.UUID;
 @Table(name = "users", indexes = {
     @Index(name = "idx_user_email", columnList = "email", unique = true),
     @Index(name = "idx_user_username", columnList = "username", unique = true),
-    @Index(name = "idx_user_keycloak_id", columnList = "keycloakId")
+    @Index(name = "idx_user_keycloak_id", columnList = "keycloakId"),
+    @Index(name = "idx_user_google_id", columnList = "googleId")
 })
 @Getter
 @Setter
@@ -28,6 +29,9 @@ public class User {
 
     @Column(length = 64)
     private String keycloakId;
+
+    @Column(length = 64)
+    private String googleId;
 
     @Column(nullable = false, unique = true, length = 64)
     private String username;

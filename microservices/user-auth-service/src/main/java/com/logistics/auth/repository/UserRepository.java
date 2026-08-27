@@ -20,9 +20,13 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     Optional<User> findByKeycloakId(String keycloakId);
 
+    Optional<User> findByGoogleId(String googleId);
+
     boolean existsByUsername(String username);
 
     boolean existsByEmail(String email);
+
+    boolean existsByGoogleId(String googleId);
 
     List<User> findByRole(User.UserRole role);
 

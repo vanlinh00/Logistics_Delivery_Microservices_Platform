@@ -1,9 +1,9 @@
 package com.logistics.fleet.saga;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.logistics.fleet.model.CourierDriver;
+import com.logistics.fleet.model.Driver;
 import com.logistics.fleet.model.PickupTask;
-import com.logistics.fleet.repository.CourierDriverRepository;
+import com.logistics.fleet.repository.DriverRepository;
 import com.logistics.fleet.repository.PickupTaskRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +27,7 @@ import java.util.UUID;
 public class FleetSagaParticipant {
 
     private final PickupTaskRepository pickupTaskRepository;
-    private final CourierDriverRepository driverRepository;
+    private final DriverRepository driverRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
 
@@ -57,7 +57,7 @@ public class FleetSagaParticipant {
         String trackingNumber = (String) cmd.get("trackingNumber");
         String address = (String) cmd.get("senderAddress");
 
-        List<CourierDriver> availableDrivers = driverRepository.findByStatus(CourierDriver.DriverStatus.AVAILABLE);
+        List<Driver> availableDrivers = driverRepository.findByStatus(Driver.DriverStatus.AVAILABLE);
 
         if (availableDrivers.isEmpty()) {
             log.warn("⚠️ No available courier drivers found for order {}", trackingNumber);
@@ -66,19 +66,18 @@ public class FleetSagaParticipant {
         }
 
         // Assign first available driver
-        CourierDriver driver = availableDrivers.get(0);
-        driver.setStatus(CourierDriver.DriverStatus.BUSY);
-        driver.setCurrentTasksCount(driver.getCurrentTasksCount() + 1);
+        Driver driver = availableDrivers.get(0);
+        driver.setStatus(Driver.DriverStatus.BUSY);
+        driver.setActiveAssignmentsCount((driver.getActiveAssignmentsCount() != null ? driver.getActiveAssignmentsCount() : 0) + 1);
         driverRepository.save(driver);
 
         PickupTask task = PickupTask.builder()
+                .orderId(orderId)
                 .trackingNumber(trackingNumber)
-                .pickupAddress(address)
+                .senderAddress(address)
                 .status(PickupTask.PickupStatus.ASSIGNED)
-                .assignedDriverId(driver.getId().toString())
-                .driverName(driver.getFullName())
-                .driverPhone(driver.getPhone())
-                .scheduledTime(LocalDateTime.now().plusHours(1))
+                .driverId(driver.getId())
+                .scheduledPickupTime(LocalDateTime.now().plusHours(1))
                 .build();
         pickupTaskRepository.save(task);
 
@@ -91,26 +90,22 @@ public class FleetSagaParticipant {
         String reason = (String) cmd.get("reason");
         log.warn("🔄 [FLEET SAGA ROLLBACK] Cancelling driver task for Tracking {}. Reason: {}", trackingNumber, reason);
 
-        List<PickupTask> tasks = pickupTaskRepository.findAll();
-        tasks.stream()
-                .filter(t -> trackingNumber.equals(t.getTrackingNumber()))
-                .findFirst()
-                .ifPresent(task -> {
-                    task.setStatus(PickupTask.PickupStatus.CANCELLED);
-                    pickupTaskRepository.save(task);
+        pickupTaskRepository.findByTrackingNumber(trackingNumber).ifPresent(task -> {
+            task.setStatus(PickupTask.PickupStatus.FAILED);
+            task.setFailureReason("SAGA Rollback: " + reason);
+            pickupTaskRepository.save(task);
 
-                    if (task.getAssignedDriverId() != null) {
-                        try {
-                            UUID driverId = UUID.fromString(task.getAssignedDriverId());
-                            driverRepository.findById(driverId).ifPresent(driver -> {
-                                driver.setStatus(CourierDriver.DriverStatus.AVAILABLE);
-                                driver.setCurrentTasksCount(Math.max(0, driver.getCurrentTasksCount() - 1));
-                                driverRepository.save(driver);
-                                log.info("Driver [{}] released back to AVAILABLE pool.", driver.getFullName());
-                            });
-                        } catch (Exception ignored) {}
+            if (task.getDriverId() != null) {
+                driverRepository.findById(task.getDriverId()).ifPresent(driver -> {
+                    driver.setStatus(Driver.DriverStatus.AVAILABLE);
+                    if (driver.getActiveAssignmentsCount() != null && driver.getActiveAssignmentsCount() > 0) {
+                        driver.setActiveAssignmentsCount(driver.getActiveAssignmentsCount() - 1);
                     }
+                    driverRepository.save(driver);
+                    log.info("Driver [{}] released back to AVAILABLE pool.", driver.getFullName());
                 });
+            }
+        });
     }
 
     private void publishResult(UUID orderId, String trackingNumber, boolean success, String driverId, String error) {
