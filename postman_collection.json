@@ -655,7 +655,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"recipient\": \"0988123456\",\n  \"channel\": \"SMS\",\n  \"title\": \"Đơn hàng đang được giao\",\n  \"content\": \"Đơn hàng ORD-984210 đang được tài xế giao tới bạn trong 30 phút nữa. Vui lòng chuẩn bị 350.000đ tiền mặt.\",\n  \"trackingNumber\": \"{{sample_tracking_number}}\"\n}"
+              "raw": "{\n  \"recipient\": \"+1-555-0199\",\n  \"channel\": \"SMS\",\n  \"title\": \"Package Out for Delivery\",\n  \"content\": \"Shipment {{sample_tracking_number}} is arriving today with your courier. Expected delivery between 2:00 PM and 4:00 PM.\",\n  \"trackingNumber\": \"{{sample_tracking_number}}\"\n}"
             },
             "url": {
               "raw": "{{gateway_url}}/api/v1/notifications/send-manual",
@@ -676,17 +676,43 @@
               }
             ],
             "url": {
-              "raw": "{{gateway_url}}/api/v1/notifications/logs?recipient=0988123456",
+              "raw": "{{gateway_url}}/api/v1/notifications/logs?recipient=+1-555-0199",
               "host": ["{{gateway_url}}"],
               "path": ["api", "v1", "notifications", "logs"],
               "query": [
                 {
                   "key": "recipient",
-                  "value": "0988123456"
+                  "value": "+1-555-0199"
                 }
               ]
             },
             "description": "Queries delivery status of dispatched SMS, Email, and Push alerts."
+          }
+        },
+        {
+          "name": "6.3. Concurrent Multi-Channel Broadcast",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channels\": [\"EMAIL\", \"SMS\", \"ZALO_ZNS\", \"PUSH\"],\n  \"recipient\": \"+1-555-0199\",\n  \"title\": \"Urgent Shipment Status Alert\",\n  \"content\": \"Urgent update regarding package {{sample_tracking_number}}: Carrier has arrived at your destination address.\",\n  \"trackingNumber\": \"{{sample_tracking_number}}\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/notifications/broadcast-parallel",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "v1", "notifications", "broadcast-parallel"]
+            },
+            "description": "Broadcasts notifications across multiple worker threads concurrently using CompletableFuture."
           }
         }
       ]

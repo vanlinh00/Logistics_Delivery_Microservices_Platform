@@ -11,13 +11,6 @@ public final class ApiPath {
     }
 
     // ==========================================
-    // OAUTH & GATEWAY CONTEXT PATHS
-    // ==========================================
-    public static final String OAUTH_TOKEN = "/oauth/get_token";
-    public static final String OAUTH_LOGOUT = "/oauth/logout";
-    public static final String OAUTH_LOGOUT_BY_LIST_USER = "/oauth/logout-by-list-user";
-
-    // ==========================================
     // NOTIFICATION PATHS (/api/v1/notifications)
     // ==========================================
     public static final String NOTIFICATIONS_BASE = "/api/v1/notifications";
@@ -27,6 +20,7 @@ public final class ApiPath {
 
     // Relative sub-paths for controller mappings
     public static final String LOGS = "/logs";
+    public static final String LOGS_BY_ID = "/logs/{id}";
     public static final String SEND_MANUAL = "/send-manual";
     public static final String BROADCAST_PARALLEL = "/broadcast-parallel";
 }
