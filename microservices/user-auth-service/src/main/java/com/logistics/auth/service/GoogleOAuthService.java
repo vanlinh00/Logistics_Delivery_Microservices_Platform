@@ -4,8 +4,10 @@ import com.logistics.auth.constant.MessageCode;
 import com.logistics.auth.dto.AuthDTOs.AuthResponse;
 import com.logistics.auth.exception.AccountInactiveException;
 import com.logistics.auth.model.AuthAuditLog;
+import com.logistics.auth.model.Permission;
 import com.logistics.auth.model.User;
 import com.logistics.auth.repository.AuthAuditLogRepository;
+import com.logistics.auth.repository.RoleRepository;
 import com.logistics.auth.repository.UserRepository;
 import com.logistics.auth.security.JwtTokenProvider;
 import jakarta.servlet.http.HttpServletRequest;
@@ -16,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -31,7 +34,7 @@ import java.util.UUID;
 public class GoogleOAuthService {
 
     private final UserRepository userRepository;
-    private final AuthService authService;
+    private final RoleRepository roleRepository;
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
     private final AuthAuditLogRepository auditLogRepository;
@@ -100,7 +103,7 @@ public class GoogleOAuthService {
         }
 
         // 3. Permissions & Token Generation
-        List<String> permissions = authService.getPermissionsForRole(user.getRole());
+        List<String> permissions = getPermissionsForRole(user.getRole());
         String accessToken = jwtTokenProvider.generateAccessToken(user, permissions);
         String refreshToken = jwtTokenProvider.generateRefreshToken(user);
         long expiresIn = jwtTokenProvider.getAccessTokenExpirationMs() / 1000;
@@ -122,6 +125,24 @@ public class GoogleOAuthService {
                 .mfaRequired(false)
                 .message(messageService.getMessage(MessageCode.SUCCESS))
                 .build();
+    }
+
+    public List<String> getPermissionsForRole(User.UserRole role) {
+        if (role == null) {
+            return Collections.emptyList();
+        }
+        return roleRepository.findByCodeWithPermissions(role.name())
+                .map(r -> r.getPermissions() != null
+                        ? r.getPermissions().stream().map(Permission::getCode).sorted().toList()
+                        : Collections.<String>emptyList())
+                .filter(list -> !list.isEmpty())
+                .orElseGet(() -> switch (role) {
+                    case ROLE_ADMIN -> List.of("orders:create", "orders:read", "orders:update", "orders:cancel", "orders:delete", "fleet:view", "fleet:dispatch", "users:read", "users:write", "analytics:view");
+                    case ROLE_MERCHANT -> List.of("orders:create", "orders:read", "orders:cancel", "analytics:view");
+                    case ROLE_COURIER -> List.of("orders:read", "orders:status:update", "fleet:status:update");
+                    case ROLE_DISPATCHER -> List.of("orders:read", "orders:update", "fleet:dispatch", "fleet:view");
+                    default -> List.of("orders:create", "orders:read", "orders:cancel");
+                });
     }
 
     private String generateBaseUsername(String email) {

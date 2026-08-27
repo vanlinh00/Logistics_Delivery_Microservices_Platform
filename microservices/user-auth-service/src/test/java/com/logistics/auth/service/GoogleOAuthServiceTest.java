@@ -5,6 +5,7 @@ import com.logistics.auth.dto.AuthDTOs.AuthResponse;
 import com.logistics.auth.exception.AccountInactiveException;
 import com.logistics.auth.model.User;
 import com.logistics.auth.repository.AuthAuditLogRepository;
+import com.logistics.auth.repository.RoleRepository;
 import com.logistics.auth.repository.UserRepository;
 import com.logistics.auth.security.JwtTokenProvider;
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,6 +25,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
@@ -34,7 +36,7 @@ class GoogleOAuthServiceTest {
     private UserRepository userRepository;
 
     @Mock
-    private AuthService authService;
+    private RoleRepository roleRepository;
 
     @Mock
     private JwtTokenProvider jwtTokenProvider;
@@ -75,7 +77,7 @@ class GoogleOAuthServiceTest {
     void testSuccessfulGoogleLogin_ExistingUser_ByGoogleId() {
         when(userRepository.findByGoogleId("google-sub-12345")).thenReturn(Optional.of(existingUser));
         when(userRepository.save(any(User.class))).thenReturn(existingUser);
-        when(authService.getPermissionsForRole(User.UserRole.ROLE_CUSTOMER)).thenReturn(List.of("orders:read", "orders:create"));
+        when(roleRepository.findByCodeWithPermissions("ROLE_CUSTOMER")).thenReturn(Optional.empty());
         when(jwtTokenProvider.generateAccessToken(any(User.class), anyList())).thenReturn("mock-access-token");
         when(jwtTokenProvider.generateRefreshToken(any(User.class))).thenReturn("mock-refresh-token");
         when(jwtTokenProvider.getAccessTokenExpirationMs()).thenReturn(86400000L);
@@ -110,7 +112,7 @@ class GoogleOAuthServiceTest {
         when(userRepository.findByGoogleId("new-google-sub-789")).thenReturn(Optional.empty());
         when(userRepository.findByEmail("jane.smith@example.com")).thenReturn(Optional.of(userWithoutGoogleId));
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(authService.getPermissionsForRole(User.UserRole.ROLE_CUSTOMER)).thenReturn(List.of("orders:read"));
+        when(roleRepository.findByCodeWithPermissions("ROLE_CUSTOMER")).thenReturn(Optional.empty());
         when(jwtTokenProvider.generateAccessToken(any(User.class), anyList())).thenReturn("jwt-access");
         when(jwtTokenProvider.generateRefreshToken(any(User.class))).thenReturn("jwt-refresh");
         when(jwtTokenProvider.getAccessTokenExpirationMs()).thenReturn(3600000L);
@@ -137,7 +139,7 @@ class GoogleOAuthServiceTest {
             u.setId(UUID.randomUUID());
             return u;
         });
-        when(authService.getPermissionsForRole(User.UserRole.ROLE_CUSTOMER)).thenReturn(List.of("orders:read"));
+        when(roleRepository.findByCodeWithPermissions("ROLE_CUSTOMER")).thenReturn(Optional.empty());
         when(jwtTokenProvider.generateAccessToken(any(User.class), anyList())).thenReturn("new-user-access");
         when(jwtTokenProvider.generateRefreshToken(any(User.class))).thenReturn("new-user-refresh");
         when(jwtTokenProvider.getAccessTokenExpirationMs()).thenReturn(86400000L);
@@ -172,7 +174,7 @@ class GoogleOAuthServiceTest {
             u.setId(UUID.randomUUID());
             return u;
         });
-        when(authService.getPermissionsForRole(User.UserRole.ROLE_CUSTOMER)).thenReturn(List.of("orders:read"));
+        when(roleRepository.findByCodeWithPermissions("ROLE_CUSTOMER")).thenReturn(Optional.empty());
         when(jwtTokenProvider.generateAccessToken(any(User.class), anyList())).thenReturn("alex-access");
         when(jwtTokenProvider.generateRefreshToken(any(User.class))).thenReturn("alex-refresh");
         when(jwtTokenProvider.getAccessTokenExpirationMs()).thenReturn(86400000L);
