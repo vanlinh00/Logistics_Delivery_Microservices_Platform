@@ -30,6 +30,7 @@ import java.nio.charset.StandardCharsets;
 public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccessHandler {
 
     private final GoogleOAuthService googleOAuthService;
+    private final HttpCookieOAuth2AuthorizationRequestRepository cookieAuthorizationRequestRepository;
     private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
 
     @Override
@@ -37,6 +38,8 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
                                         HttpServletResponse response,
                                         Authentication authentication) throws IOException, ServletException {
         try {
+            cookieAuthorizationRequestRepository.removeAuthorizationRequestCookies(request, response);
+
             Object principal = authentication.getPrincipal();
             GoogleOAuth2UserInfo userInfo;
 

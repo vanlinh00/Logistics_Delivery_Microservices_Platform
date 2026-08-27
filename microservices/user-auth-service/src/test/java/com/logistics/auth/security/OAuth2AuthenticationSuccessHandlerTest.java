@@ -43,6 +43,9 @@ class OAuth2AuthenticationSuccessHandlerTest {
     private GoogleOAuthService googleOAuthService;
 
     @Mock
+    private HttpCookieOAuth2AuthorizationRequestRepository cookieAuthorizationRequestRepository;
+
+    @Mock
     private Authentication authentication;
 
     @InjectMocks
@@ -101,7 +104,7 @@ class OAuth2AuthenticationSuccessHandlerTest {
     @Test
     @DisplayName("Should return 401 JSON error response on authentication failure")
     void testOnAuthenticationFailure_ReturnsJsonErrorResponse() throws Exception {
-        OAuth2AuthenticationFailureHandler failureHandler = new OAuth2AuthenticationFailureHandler();
+        OAuth2AuthenticationFailureHandler failureHandler = new OAuth2AuthenticationFailureHandler(cookieAuthorizationRequestRepository);
 
         MockHttpServletRequest request = new MockHttpServletRequest();
         MockHttpServletResponse response = new MockHttpServletResponse();
