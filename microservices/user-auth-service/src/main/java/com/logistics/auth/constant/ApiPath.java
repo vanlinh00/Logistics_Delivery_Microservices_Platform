@@ -47,4 +47,17 @@ public final class ApiPath {
     // ==========================================
     public static final String MERCHANTS_BASE = "/api/v1/users/merchants";
     public static final String PROFILE = "/profile";
+
+    // ==========================================
+    // KEYCLOAK ROLES & PERMISSIONS PATHS (/api/v1/roles)
+    // ==========================================
+    public static final String ROLES_BASE = "/api/v1/roles";
+    public static final String ROLE_BY_NAME = "/{roleName}";
+    public static final String ROLE_COMPOSITES = "/{roleName}/composites";
+    public static final String ROLE_USERS = "/{roleName}/users";
+    public static final String ROLE_USER_ASSIGN = "/users/{userId}/assign";
+    public static final String ROLE_USER_REMOVE = "/users/{userId}/remove";
+    public static final String ROLE_USER_MAPPINGS = "/users/{userId}/roles";
+    public static final String CLIENT_ROLES = "/clients/{clientId}";
+    public static final String CLIENT_ROLE_BY_NAME = "/clients/{clientId}/{roleName}";
 }

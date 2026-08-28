@@ -1,5 +1,6 @@
 package com.logistics.tracking.service;
 
+import com.logistics.tracking.constant.KafkaTopic;
 import com.logistics.tracking.model.TrackingEvent;
 import com.logistics.tracking.repository.TrackingEventRepository;
 import lombok.RequiredArgsConstructor;
@@ -42,8 +43,8 @@ public class TrackingService {
             log.warn("Failed to write tracking cache to Redis, continuing: {}", e.getMessage());
         }
 
-        // Publish to tracking stream
-        kafkaTemplate.send("logistics.tracking.event-recorded", event.getTrackingNumber(), event.getStatusDescription());
+        // Publish to tracking stream using centralized KafkaTopic constant
+        kafkaTemplate.send(KafkaTopic.TRACKING_EVENT_RECORDED, event.getTrackingNumber(), event.getStatusDescription());
 
         return saved;
     }

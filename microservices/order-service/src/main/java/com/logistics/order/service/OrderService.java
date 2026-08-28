@@ -39,12 +39,23 @@ public class OrderService {
     private final RedissonClient redissonClient;
     private final ObjectMapper objectMapper;
     private final com.logistics.order.saga.OrderSagaOrchestrator sagaOrchestrator;
+    private final com.logistics.order.client.UserAuthServiceClient userAuthServiceClient;
 
     private static final String TRACKING_PREFIX = "VNX";
     private final SecureRandom random = new SecureRandom();
 
     @Transactional
     public Order createOrder(OrderDTOs.CreateOrderRequest request) {
+        // Optional inter-service customer validation via Eureka & LoadBalancer
+        if (request.getCustomerId() != null) {
+            try {
+                var customerProfile = userAuthServiceClient.fetchUserProfile(request.getCustomerId());
+                log.info("Validated customer via Eureka inter-service call: {} ({})", customerProfile.getUsername(), customerProfile.getEmail());
+            } catch (Exception ex) {
+                log.warn("Customer validation inter-service call warning for {}: {}", request.getCustomerId(), ex.getMessage());
+            }
+        }
+
         // Validate sender and recipient addresses
         var senderValidation = addressService.validateAddress(request.getSenderAddress(), request.getSenderPhone());
         if (!senderValidation.isValid()) {

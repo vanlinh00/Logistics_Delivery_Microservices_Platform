@@ -1,5 +1,6 @@
 package com.logistics.tracking.listener;
 
+import com.logistics.tracking.constant.KafkaTopic;
 import com.logistics.tracking.model.TrackingEvent;
 import com.logistics.tracking.service.ParcelElasticsearchService;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +20,7 @@ public class TrackingElasticsearchSyncListener {
 
     private final ParcelElasticsearchService elasticsearchService;
 
-    @KafkaListener(topics = "logistics.tracking.event-recorded", groupId = "tracking-es-sync-group")
+    @KafkaListener(topics = KafkaTopic.TRACKING_EVENT_RECORDED, groupId = "tracking-es-sync-group")
     public void handleTrackingEvent(String trackingNumber, String statusDescription) {
         log.info("CDC Kafka Event: Received tracking update for [{}], syncing to Elasticsearch...", trackingNumber);
         
@@ -31,3 +32,4 @@ public class TrackingElasticsearchSyncListener {
         elasticsearchService.syncTrackingEventToElasticsearch(event);
     }
 }
+

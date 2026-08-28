@@ -26,7 +26,7 @@ public class ApiResponse<T> {
     public static <T> ApiResponse<T> ok(T data, String message) {
         return ApiResponse.<T>builder()
                 .success(true)
-                .code("200")
+                .code(com.logistics.tracking.constant.MessageCode.SUCCESS.getCode())
                 .message(message)
                 .data(data)
                 .details(Collections.emptyList())
@@ -35,13 +35,13 @@ public class ApiResponse<T> {
     }
 
     public static <T> ApiResponse<T> ok(T data) {
-        return ok(data, "Success");
+        return ok(data, "Operation completed successfully");
     }
 
     public static <T> ApiResponse<T> created(T data, String message) {
         return ApiResponse.<T>builder()
                 .success(true)
-                .code("201")
+                .code(com.logistics.tracking.constant.MessageCode.CREATED.getCode())
                 .message(message)
                 .data(data)
                 .details(Collections.emptyList())
@@ -62,5 +62,9 @@ public class ApiResponse<T> {
 
     public static <T> ApiResponse<T> error(String code, String message) {
         return error(code, message, Collections.emptyList());
+    }
+
+    public static <T> ApiResponse<T> error(com.logistics.tracking.constant.MessageCode messageCode, String message) {
+        return error(messageCode.getCode(), message, Collections.emptyList());
     }
 }
